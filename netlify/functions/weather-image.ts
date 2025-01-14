@@ -81,7 +81,6 @@ interface UVData {
 }
 
 const OPENWEATHER_API_KEY = "693c1f1df284ff1be69d05f2b09d015c";
-const CITY = "Sheffield,UK";
 
 function getCurvePoints(points: Array<[number, number]>, tension = 0.3) {
   const res: Array<[number, number]> = [];
@@ -125,27 +124,28 @@ function getTemperatureColor(temp: number): string {
 
 const handler: Handler = async (event, context) => {
   try {
+    const location = event.queryStringParameters?.location || "Sheffield,UK";
+
     // Load weather icons before proceeding
     await loadWeatherIcons();
 
     // First get current weather to get coordinates
     const currentResponse = await axios.get<CurrentWeather>(
-      `https://api.openweathermap.org/data/2.5/weather?q=${CITY}&appid=${OPENWEATHER_API_KEY}&units=metric`
+      `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
     );
 
     // Get coordinates from current weather
     const { lat, lon } = currentResponse.data.coord;
 
-    // Fetch all data in parallel
+    // Now use lat/lon in the parallel requests
     const [forecastResponse, uvResponse] = await Promise.all([
       axios.get<WeatherData>(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${CITY}&appid=${OPENWEATHER_API_KEY}&units=metric`
+        `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
       ),
       axios.get<UVData>(
         `http://api.openweathermap.org/data/2.5/uvi?appid=${OPENWEATHER_API_KEY}&lat=${lat}&lon=${lon}`
       ),
     ]);
-
     const next24Hours = forecastResponse.data.list.slice(0, 8);
     const currentWeather = currentResponse.data;
     const uvIndex = uvResponse.data.value;
@@ -163,27 +163,27 @@ const handler: Handler = async (event, context) => {
 
     // Current weather title
     ctx.font = "42px Mania";
-    ctx.fillText("Current Weather in Sheffield", 20, 20);
+    ctx.fillText(`Current Weather in ${location.split(",")[0]}`, 20, 20);
 
     // Current weather details
     ctx.font = "42px Mania";
     let currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
     currentTemp = `18°C`;
-    const iconSize = 120;
+    const iconSize = 110;
     const weatherIcon = getWeatherIcon(currentWeather.weather[0].main);
-    ctx.drawImage(weatherIcons[weatherIcon], 20, 65, iconSize, iconSize);
+    ctx.drawImage(weatherIcons[weatherIcon], 20, 80, iconSize, iconSize);
     ctx.fillText(currentTemp, 20 + iconSize + 5, iconSize - 45);
 
     ctx.font = "32px Mania";
     const windSpeedKmh = Math.round(currentWeather.wind.speed * 3.6);
-    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 250, 72);
-    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 250, 108);
-    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 250, 144);
+    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 230, 82);
+    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 230, 118);
+    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 230, 154);
 
     // Draw forecast graph in bottom half
-    const graphMargin = { top: 220, right: 40, bottom: 40, left: 40 };
+    const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
     const graphWidth = canvas.width - graphMargin.left - graphMargin.right;
-    const graphHeight = 210;
+    const graphHeight = 200;
     const graphBottom = graphHeight + graphMargin.top;
 
     // Find temperature range
