@@ -1,10 +1,10 @@
-import { Handler } from "@netlify/functions";
+import { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas, registerFont } from "canvas";
 import axios from "axios";
 import path from "path";
 
 // Register Mania font
-const fontPath = path.join(__dirname, "..", "..", "fonts", "mania.ttf");
+const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
 registerFont(fontPath, { family: "Mania" });
 
 // Load weather icons
@@ -15,7 +15,7 @@ async function loadWeatherIcons() {
   const iconTypes = ["clear", "cloudy", "fog", "rain", "snow", "thunderstorm"];
   for (const type of iconTypes) {
     weatherIcons[type] = await loadImage(
-      path.join(__dirname, "..", "..", "icons", `${type}.png`)
+      path.join(process.cwd(), "public", "icons", `${type}.png`)
     );
   }
 }
@@ -116,15 +116,18 @@ function getCurvePoints(points: Array<[number, number]>, tension = 0.3) {
 }
 
 function getTemperatureColor(temp: number): string {
-  if (temp <= 0) return "#4287f5";
-  if (temp <= 10) return "#2ecc71";
-  if (temp <= 20) return "#f39c12";
+  if (temp <= 0) return "#0096FF";
+  if (temp <= 10) return "#AAFF00";
+  if (temp <= 20) return "#FFA500";
   return "#e74c3c";
 }
 
-const handler: Handler = async (event, context) => {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
-    const location = event.queryStringParameters?.location || "Sheffield,UK";
+    const location = (req.query.location as string) || "Sheffield,UK";
 
     // Load weather icons before proceeding
     await loadWeatherIcons();
@@ -163,7 +166,17 @@ const handler: Handler = async (event, context) => {
 
     // Current weather title
     ctx.font = "42px Mania";
-    ctx.fillText(`Current Weather in ${location.split(",")[0]}`, 20, 20);
+    const now = new Date();
+    const dateTimeStr =
+      now.toLocaleDateString("en-UK", {
+        weekday: "short",
+      }) +
+      " " +
+      now.toLocaleTimeString("en-UK", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    ctx.fillText(`Weather ${location.split(",")[0]}, ${dateTimeStr}`, 20, 15);
 
     // Current weather details
     ctx.font = "42px Mania";
@@ -176,9 +189,9 @@ const handler: Handler = async (event, context) => {
 
     ctx.font = "32px Mania";
     const windSpeedKmh = Math.round(currentWeather.wind.speed * 3.6);
-    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 230, 82);
-    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 230, 118);
-    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 230, 154);
+    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 250, 82);
+    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 250, 118);
+    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 250, 154);
 
     // Draw forecast graph in bottom half
     const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
@@ -196,17 +209,16 @@ const handler: Handler = async (event, context) => {
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(graphMargin.left - 20, graphBottom); // Extend 10px to the left
-    ctx.lineTo(canvas.width - graphMargin.right + 20, graphBottom); // Extend 10px to the right
+    ctx.moveTo(graphMargin.left - 20, graphBottom);
+    ctx.lineTo(canvas.width - graphMargin.right + 20, graphBottom);
     ctx.stroke();
 
     // Add bottom padding percentage
-    const bottomPaddingPercentage = 0.25; // Adjust this value to increase/decrease bottom padding
+    const bottomPaddingPercentage = 0.25;
 
-    // Collect points for the curve - modified version with true bottom padding
+    // Collect points for the curve
     const points: Array<[number, number]> = next24Hours.map((data, index) => {
       const x = graphMargin.left + index * (graphWidth / 7);
-      // Scale the y-position but start from higher up (adding bottom padding)
       const y =
         graphMargin.top +
         graphHeight *
@@ -238,7 +250,6 @@ const handler: Handler = async (event, context) => {
     next24Hours.forEach((data, index) => {
       const x = graphMargin.left + index * (graphWidth / 7);
 
-      // Find the corresponding curve point for this x position
       const curvePoint = curvePoints.find(
         (point) => Math.abs(point[0] - x) < 1
       );
@@ -255,7 +266,7 @@ const handler: Handler = async (event, context) => {
       ctx.fillText(time, 0, 0);
       ctx.restore();
 
-      // Temperature labels - now positioned based on curve points
+      // Temperature labels
       ctx.fillText(`${Math.round(data.main.temp)}°C`, x - 15, y - 40);
 
       // Weather icons for forecast points
@@ -270,25 +281,13 @@ const handler: Handler = async (event, context) => {
       );
     });
 
-    // Convert canvas to buffer
+    // Convert canvas to buffer and send response
     const buffer = canvas.toBuffer("image/jpeg");
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "image/jpeg",
-        "Cache-Control": "public, max-age=300",
-      },
-      body: buffer.toString("base64"),
-      isBase64Encoded: true,
-    };
+    res.setHeader("Content-Type", "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=300");
+    res.send(buffer);
   } catch (error) {
     console.error("Error:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: "Failed to generate weather image" }),
-    };
+    res.status(500).json({ error: "Failed to generate weather image" });
   }
-};
-
-export { handler };
+}
