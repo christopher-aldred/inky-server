@@ -180,8 +180,7 @@ export default async function handler(
 
     // Current weather details
     ctx.font = "42px Mania";
-    let currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
-    currentTemp = `18°C`;
+    const currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
     const iconSize = 110;
     const weatherIcon = getWeatherIcon(currentWeather.weather[0].main);
     ctx.drawImage(weatherIcons[weatherIcon], 20, 80, iconSize, iconSize);
