@@ -251,12 +251,12 @@ const handler: Handler = async (event, context) => {
         hour: "2-digit",
       });
       ctx.save();
-      ctx.translate(x - 8, graphBottom + 10);
+      ctx.translate(x - 10, graphBottom + 10);
       ctx.fillText(time, 0, 0);
       ctx.restore();
 
       // Temperature labels - now positioned based on curve points
-      ctx.fillText(`${Math.round(data.main.temp)}°C`, x - 15, y - 35);
+      ctx.fillText(`${Math.round(data.main.temp)}°C`, x - 15, y - 40);
 
       // Weather icons for forecast points
       const weatherIcon = getWeatherIcon(data.weather[0].main);
