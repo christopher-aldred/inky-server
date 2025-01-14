@@ -281,10 +281,11 @@ export default async function handler(
       );
     });
 
-    // Convert canvas to buffer and send response
     const buffer = canvas.toBuffer("image/jpeg");
     res.setHeader("Content-Type", "image/jpeg");
-    res.setHeader("Cache-Control", "public, max-age=300");
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     res.send(buffer);
   } catch (error) {
     console.error("Error:", error);
