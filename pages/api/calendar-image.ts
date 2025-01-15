@@ -236,8 +236,7 @@ export default async function handler(
     // Draw today's date and time in header
     ctx.fillStyle = "#000000";
     ctx.font = "42px Mania";
-    const currentTime = formatTime(new Date());
-    const headerText = `${formatDate(now)}, ${currentTime}`;
+    const headerText = `Calendar events`;
     ctx.fillText(headerText, 20, 50);
 
     // Calculate metrics for the two-column layout
