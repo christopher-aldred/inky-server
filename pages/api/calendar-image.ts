@@ -247,7 +247,7 @@ export default async function handler(
     // Draw events in two columns
     for (const [date, events] of groupedEvents) {
       const xPosition = dayIndex === 0 ? 20 : columnWidth + 40;
-      let yPosition = 120;
+      let yPosition = 100;
 
       // Draw date header
       ctx.fillStyle = "#000000";
