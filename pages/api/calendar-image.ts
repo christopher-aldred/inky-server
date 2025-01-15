@@ -234,7 +234,7 @@ export default async function handler(
     ctx.fillRect(0, 0, 800, 480);
 
     // Draw today's date and time in header
-    ctx.fillStyle = "#EE4B2B";
+    ctx.fillStyle = "#FF0000";
     ctx.font = "42px Mania";
     const headerText = `Calendar events`;
     ctx.fillText(headerText, 20, 50);
