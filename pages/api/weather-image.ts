@@ -12,7 +12,15 @@ const loadImage = require("canvas").loadImage;
 const weatherIcons: { [key: string]: any } = {};
 
 async function loadWeatherIcons() {
-  const iconTypes = ["clear", "cloudy", "fog", "rain", "snow", "thunderstorm"];
+  const iconTypes = [
+    "clear",
+    "moon",
+    "cloudy",
+    "fog",
+    "rain",
+    "snow",
+    "thunderstorm",
+  ];
   for (const type of iconTypes) {
     weatherIcons[type] = await loadImage(
       path.join(process.cwd(), "public", "icons", `${type}.png`)
@@ -20,10 +28,23 @@ async function loadWeatherIcons() {
   }
 }
 
-function getWeatherIcon(weatherMain: string): string {
+function isNighttime(
+  timestamp: number,
+  sunrise: number,
+  sunset: number
+): boolean {
+  return timestamp > sunset || timestamp < sunrise;
+}
+
+function getWeatherIcon(
+  weatherMain: string,
+  timestamp: number,
+  sunrise: number,
+  sunset: number
+): string {
   switch (weatherMain.toLowerCase()) {
     case "clear":
-      return "clear";
+      return isNighttime(timestamp, sunrise, sunset) ? "moon" : "clear";
     case "clouds":
       return "cloudy";
     case "mist":
@@ -43,6 +64,7 @@ function getWeatherIcon(weatherMain: string): string {
 
 interface WeatherData {
   list: Array<{
+    dt: number;
     dt_txt: string;
     main: {
       temp: number;
@@ -74,6 +96,10 @@ interface CurrentWeather {
     main: string;
     description: string;
   }>;
+  sys: {
+    sunrise: number;
+    sunset: number;
+  };
 }
 
 interface UVData {
@@ -161,7 +187,7 @@ export default async function handler(
     ctx.fillRect(0, 0, 800, 480);
 
     // Draw current weather information in top half
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = "#FF0000";
     ctx.textBaseline = "top";
 
     // Current weather title
@@ -178,11 +204,18 @@ export default async function handler(
       });
     ctx.fillText(`Weather ${location.split(",")[0]}, ${dateTimeStr}`, 20, 15);
 
+    ctx.fillStyle = "#000000";
+
     // Current weather details
     ctx.font = "42px Mania";
     const currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
     const iconSize = 130;
-    const weatherIcon = getWeatherIcon(currentWeather.weather[0].main);
+    const weatherIcon = getWeatherIcon(
+      currentWeather.weather[0].main,
+      Math.floor(Date.now() / 1000),
+      currentWeather.sys.sunrise,
+      currentWeather.sys.sunset
+    );
 
     // Calculate positions for right alignment
     const tempWidth = ctx.measureText(currentTemp).width;
@@ -277,7 +310,12 @@ export default async function handler(
       ctx.fillText(`${Math.round(data.main.temp)}°C`, x - 15, y - 40);
 
       // Weather icons for forecast points
-      const weatherIcon = getWeatherIcon(data.weather[0].main);
+      const weatherIcon = getWeatherIcon(
+        data.weather[0].main,
+        data.dt,
+        currentWeather.sys.sunrise,
+        currentWeather.sys.sunset
+      );
       const smallIconSize = 40;
       ctx.drawImage(
         weatherIcons[weatherIcon],
