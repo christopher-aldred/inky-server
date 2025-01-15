@@ -234,14 +234,14 @@ export default async function handler(
     ctx.fillRect(0, 0, 800, 480);
 
     // Draw today's date and time in header
-    ctx.fillStyle = "#000000";
+    ctx.fillStyle = "#EE4B2B";
     ctx.font = "42px Mania";
     const headerText = `Calendar events`;
     ctx.fillText(headerText, 20, 50);
 
     // Calculate metrics for the two-column layout
     const columnWidth = 380;
-    const columnPadding = 20;
+    const columnPadding = 10;
     let dayIndex = 0;
 
     // Draw events in two columns
@@ -255,8 +255,8 @@ export default async function handler(
       ctx.fillText(date, xPosition, yPosition);
 
       // Draw line under date
-      ctx.strokeStyle = "#cccccc";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(xPosition, yPosition + 10);
       ctx.lineTo(xPosition + columnWidth - columnPadding, yPosition + 10);
@@ -303,8 +303,8 @@ export default async function handler(
 
     // Draw vertical divider between columns
     if (groupedEvents.size > 1) {
-      ctx.strokeStyle = "#cccccc";
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(columnWidth + 30, 100);
       ctx.lineTo(columnWidth + 30, 400);
@@ -344,8 +344,8 @@ export default async function handler(
     });
 
     // Draw bottom border
-    ctx.strokeStyle = "#cccccc";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(20, 410);
     ctx.lineTo(780, 410);
