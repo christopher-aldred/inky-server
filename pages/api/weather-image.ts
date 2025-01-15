@@ -187,7 +187,7 @@ export default async function handler(
     ctx.fillRect(0, 0, 800, 480);
 
     // Draw current weather information in top half
-    ctx.fillStyle = "#0000FF";
+    ctx.fillStyle = "#FF0000";
     ctx.textBaseline = "top";
 
     // Current weather title
