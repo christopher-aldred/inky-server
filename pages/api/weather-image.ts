@@ -221,7 +221,7 @@ export default async function handler(
     ctx.stroke();
 
     // Add bottom padding percentage
-    const bottomPaddingPercentage = 0.25;
+    const bottomPaddingPercentage = 0.3;
 
     // Collect points for the curve
     const points: Array<[number, number]> = next24Hours.map((data, index) => {
