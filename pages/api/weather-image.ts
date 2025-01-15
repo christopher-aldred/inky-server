@@ -181,16 +181,24 @@ export default async function handler(
     // Current weather details
     ctx.font = "42px Mania";
     const currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
-    const iconSize = 110;
+    const iconSize = 130;
     const weatherIcon = getWeatherIcon(currentWeather.weather[0].main);
-    ctx.drawImage(weatherIcons[weatherIcon], 20, 80, iconSize, iconSize);
-    ctx.fillText(currentTemp, 20 + iconSize + 5, iconSize - 45);
+
+    // Calculate positions for right alignment
+    const tempWidth = ctx.measureText(currentTemp).width;
+    const rightMargin = 20; // Space from right edge
+    const tempX = canvas.width - rightMargin - tempWidth;
+    const iconX = canvas.width - rightMargin - iconSize;
+
+    // Draw temperature and icon
+    ctx.fillText(currentTemp, tempX, 15);
+    ctx.drawImage(weatherIcons[weatherIcon], iconX, 60, iconSize, iconSize);
 
     ctx.font = "32px Mania";
     const windSpeedKmh = Math.round(currentWeather.wind.speed * 3.6);
-    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 250, 82);
-    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 250, 118);
-    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 250, 154);
+    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 20, 72);
+    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 20, 108);
+    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 20, 144);
 
     // Draw forecast graph in bottom half
     const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
