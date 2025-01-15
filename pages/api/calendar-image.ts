@@ -256,7 +256,7 @@ export default async function handler(
 
       // Draw line under date
       ctx.strokeStyle = "#cccccc";
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(xPosition, yPosition + 10);
       ctx.lineTo(xPosition + columnWidth - columnPadding, yPosition + 10);
@@ -304,7 +304,7 @@ export default async function handler(
     // Draw vertical divider between columns
     if (groupedEvents.size > 1) {
       ctx.strokeStyle = "#cccccc";
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(columnWidth + 30, 100);
       ctx.lineTo(columnWidth + 30, 400);
@@ -345,7 +345,7 @@ export default async function handler(
 
     // Draw bottom border
     ctx.strokeStyle = "#cccccc";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(20, 410);
     ctx.lineTo(780, 410);
