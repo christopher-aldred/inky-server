@@ -54,7 +54,6 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString("en-UK", {
     weekday: "short",
     day: "numeric",
-    month: "short",
   });
 }
 
@@ -239,6 +238,15 @@ export default async function handler(
     const headerText = `Calendar events`;
     ctx.fillText(headerText, 20, 50);
 
+    const dateStr = now.toLocaleDateString("en-UK", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    ctx.font = "36px Mania";
+    ctx.fillStyle = "#666666";
+    const dateWidth = ctx.measureText(dateStr).width;
+    ctx.fillText(dateStr, 800 - dateWidth - 20, 50);
     // Calculate metrics for the two-column layout
     const columnWidth = 380;
     const columnPadding = 10;
