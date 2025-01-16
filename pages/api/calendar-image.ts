@@ -134,14 +134,14 @@ async function getCalDavEvents(
   const events: any[] = [];
   for (const calendar of calendars) {
     const calendarObjects = await client.calendarQuery({
-      calendar,
-      prop: ["D:getetag", "C:calendar-data"],
-      filters: calendarQuery,
+      url: calendar.url,
+      props: ["D:getetag", "C:calendar-data"],
+      filters: calendarQuery as any,
     });
 
     for (const obj of calendarObjects) {
-      if (obj.calendarData) {
-        const parsedEvents = await ical.async.parseICS(obj.calendarData);
+      if ((obj as any).calendarData) {
+        const parsedEvents = await ical.async.parseICS((obj as any).calendarData);
         events.push(...Object.values(parsedEvents));
       }
     }
@@ -163,7 +163,12 @@ async function getWeatherForecast(location: string = "Sheffield,UK") {
     `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
   );
 
-  const dailyForecasts = [];
+  interface WeatherForecast {
+    date: Date;
+    temp: number;
+    weather: string;
+  }
+  const dailyForecasts: WeatherForecast[] = [];
   const processedDates = new Set();
 
   for (const item of response.data.list) {
