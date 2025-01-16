@@ -141,7 +141,9 @@ async function getCalDavEvents(
 
     for (const obj of calendarObjects) {
       if ((obj as any).calendarData) {
-        const parsedEvents = await ical.async.parseICS((obj as any).calendarData);
+        const parsedEvents = await ical.async.parseICS(
+          (obj as any).calendarData
+        );
         events.push(...Object.values(parsedEvents));
       }
     }
@@ -271,8 +273,8 @@ export default async function handler(
       ctx.strokeStyle = "#000000";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(xPosition, yPosition + 10);
-      ctx.lineTo(xPosition + columnWidth - columnPadding, yPosition + 10);
+      ctx.moveTo(xPosition - 20, yPosition + 10);
+      ctx.lineTo(xPosition + columnWidth - columnPadding + 20, yPosition + 10);
       ctx.stroke();
 
       yPosition += 50;
@@ -319,8 +321,8 @@ export default async function handler(
       ctx.strokeStyle = "#000000";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(columnWidth + 30, 100);
-      ctx.lineTo(columnWidth + 30, 400);
+      ctx.moveTo(columnWidth + 30, 70);
+      ctx.lineTo(columnWidth + 30, 410);
       ctx.stroke();
     }
 
@@ -360,8 +362,8 @@ export default async function handler(
     ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(20, 410);
-    ctx.lineTo(780, 410);
+    ctx.moveTo(0, 410);
+    ctx.lineTo(800, 410);
     ctx.stroke();
 
     // Output the image
