@@ -321,14 +321,14 @@ export default async function handler(
         // Draw time
         ctx.font = "32px Mania";
         ctx.fillStyle = "#666666";
-        ctx.fillText(formatTime(event.start), xPosition + 20, yPosition);
+        ctx.fillText(formatTime(event.start), xPosition, yPosition);
 
         // Draw event title
         ctx.fillStyle = "#000000";
         ctx.font = "32px Mania";
 
         let title = removeEmojis(event.summary || "Untitled Event");
-        const maxWidth = columnWidth - 120;
+        const maxWidth = columnWidth - 90;
         if (ctx.measureText(title).width > maxWidth) {
           let truncated = title;
           while (ctx.measureText(truncated + "...").width > maxWidth) {
@@ -337,7 +337,7 @@ export default async function handler(
           title = truncated + "...";
         }
 
-        ctx.fillText(title, xPosition + 120, yPosition);
+        ctx.fillText(title, xPosition + 90, yPosition);
         yPosition += 45;
       }
 
