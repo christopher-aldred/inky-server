@@ -60,9 +60,11 @@ function formatDate(date: Date): string {
 function removeEmojis(text: string): string {
   return text
     .replace(
-      /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g,
+      /[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}-\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu,
       ""
     )
+    .replace(/[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}]/gu, "") // Remove variation selectors and skin tones
+    .replace(/\s+/g, " ") // Replace multiple spaces with single space
     .trim();
 }
 
@@ -91,6 +93,40 @@ function groupEventsByDate(events: any[]): Map<string, any[]> {
     });
 
   return filteredEvents;
+}
+
+function expandRecurringEvents(
+  events: any[],
+  startDate: Date,
+  endDate: Date
+): any[] {
+  const expandedEvents: any[] = [];
+
+  events.forEach((event) => {
+    if (!event.start || !event.type || event.type !== "VEVENT") return;
+
+    // Handle non-recurring events
+    if (!event.rrule) {
+      if (event.start >= startDate && event.start <= endDate) {
+        expandedEvents.push(event);
+      }
+      return;
+    }
+
+    // Handle recurring events
+    const dates = event.rrule.between(startDate, endDate);
+    dates.forEach((date) => {
+      expandedEvents.push({
+        ...event,
+        start: date,
+        end: new Date(
+          date.getTime() + (event.end.getTime() - event.start.getTime())
+        ),
+      });
+    });
+  });
+
+  return expandedEvents;
 }
 
 // Calendar data fetching
@@ -220,13 +256,11 @@ export default async function handler(
     now.setHours(0, 0, 0, 0);
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-    const relevantEvents = allEvents
-      .filter((event: any) => {
-        if (!event.start || !event.type || event.type !== "VEVENT")
-          return false;
-        return event.start >= now && event.start <= sevenDaysFromNow;
-      })
-      .sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
+    const relevantEvents = expandRecurringEvents(
+      allEvents,
+      now,
+      sevenDaysFromNow
+    ).sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
 
     // Group events by date
     const groupedEvents = groupEventsByDate(relevantEvents);
@@ -254,6 +288,7 @@ export default async function handler(
     ctx.fillStyle = "#666666";
     const dateWidth = ctx.measureText(dateStr).width;
     ctx.fillText(dateStr, 800 - dateWidth - 20, 50);
+
     // Calculate metrics for the two-column layout
     const columnWidth = 380;
     const columnPadding = 10;
