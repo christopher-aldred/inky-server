@@ -229,7 +229,12 @@ export default async function handler(
 
     ctx.font = "32px Mania";
     const windSpeedKmh = Math.round(currentWeather.wind.speed * 3.6);
+    // Set text color based on wind speed
+    ctx.fillStyle = windSpeedKmh > 60 ? "#FF0000" : "#000000";
     ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 20, 72);
+
+    // Reset text color back to black for subsequent text
+    ctx.fillStyle = "#000000";
     ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 20, 108);
     ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 20, 144);
 
