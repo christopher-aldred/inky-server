@@ -77,6 +77,12 @@ interface WeatherData {
     wind: {
       speed: number;
     };
+    rain?: {
+      "3h"?: number;
+    };
+    snow?: {
+      "3h"?: number;
+    };
   }>;
 }
 
@@ -99,6 +105,12 @@ interface CurrentWeather {
   sys: {
     sunrise: number;
     sunset: number;
+  };
+  rain?: {
+    "1h"?: number;
+  };
+  snow?: {
+    "1h"?: number;
   };
 }
 
@@ -179,6 +191,11 @@ export default async function handler(
     const currentWeather = currentResponse.data;
     const uvIndex = uvResponse.data.value;
 
+    // Calculate total precipitation over the next 24 hours
+    const precipitation = next24Hours.reduce((total, data) => {
+      return total + (data.rain?.["3h"] || 0) + (data.snow?.["3h"] || 0);
+    }, 0);
+
     const canvas = createCanvas(800, 480);
     const ctx = canvas.getContext("2d");
 
@@ -187,7 +204,7 @@ export default async function handler(
     ctx.fillRect(0, 0, 800, 480);
 
     // Draw current weather information in top half
-    ctx.fillStyle = "#666666";
+    ctx.fillStyle = "#FF0000";
     ctx.textBaseline = "top";
 
     // Current weather title
@@ -209,6 +226,7 @@ export default async function handler(
     // Current weather details
     ctx.font = "42px Mania";
     const currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
+
     const iconSize = 130;
     const weatherIcon = getWeatherIcon(
       currentWeather.weather[0].main,
@@ -229,14 +247,39 @@ export default async function handler(
 
     ctx.font = "32px Mania";
     const windSpeedKmh = Math.round(currentWeather.wind.speed * 3.6);
-    // Set text color based on wind speed
-    ctx.fillStyle = windSpeedKmh > 60 ? "#FF0000" : "#000000";
-    ctx.fillText(`Wind Speed: ${windSpeedKmh} km/h`, 20, 72);
 
-    // Reset text color back to black for subsequent text
+    // Wind Speed
+    ctx.fillStyle = "#666666";
+    ctx.fillText("Wind Speed: ", 20, 72);
+    ctx.fillStyle = windSpeedKmh > 60 ? "#FF0000" : "#000000";
+    ctx.fillText(`${windSpeedKmh} km/h`, 190, 72);
+
+    // Rain
+    ctx.fillStyle = "#666666";
+    const rainTextStart =
+      20 +
+      ctx.measureText("Wind Speed: ").width +
+      ctx.measureText(`${windSpeedKmh} km/h`).width +
+      40;
+    ctx.fillText("Rain: ", rainTextStart, 72);
     ctx.fillStyle = "#000000";
-    ctx.fillText(`Humidity: ${currentWeather.main.humidity}%`, 20, 108);
-    ctx.fillText(`UV Index: ${uvIndex.toFixed(1)}`, 20, 144);
+    ctx.fillText(
+      `${precipitation.toFixed(1)} mm`,
+      rainTextStart + ctx.measureText("Rain: ").width,
+      72
+    );
+
+    // Humidity
+    ctx.fillStyle = "#666666";
+    ctx.fillText("Humidity: ", 20, 108);
+    ctx.fillStyle = "#000000";
+    ctx.fillText(`${currentWeather.main.humidity}%`, 150, 108);
+
+    // UV Index
+    ctx.fillStyle = "#666666";
+    ctx.fillText("UV Index: ", 20, 144);
+    ctx.fillStyle = "#000000";
+    ctx.fillText(uvIndex.toFixed(1), 160, 144);
 
     // Draw forecast graph in bottom half
     const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
