@@ -11,6 +11,10 @@ registerFont(fontPath, { family: "Mania" });
 const loadImage = require("canvas").loadImage;
 const weatherIcons: { [key: string]: any } = {};
 
+function capitalize(s) {
+  return String(s[0]).toUpperCase() + String(s).slice(1);
+}
+
 async function loadWeatherIcons() {
   const iconTypes = [
     "clear",
@@ -295,7 +299,11 @@ export default async function handler(
 
     // Weather Description
     ctx.fillStyle = "#000000";
-    ctx.fillText(currentWeather.weather[0].description, rainTextStart, 144);
+    ctx.fillText(
+      capitalize(currentWeather.weather[0].description),
+      rainTextStart,
+      144
+    );
 
     // Draw forecast graph in bottom half
     const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
