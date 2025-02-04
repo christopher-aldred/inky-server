@@ -90,6 +90,7 @@ interface CurrentWeather {
   main: {
     temp: number;
     humidity: number;
+    feels_like: number;
   };
   wind: {
     speed: number;
@@ -254,6 +255,18 @@ export default async function handler(
     ctx.fillStyle = windSpeedKmh > 60 ? "#FF0000" : "#000000";
     ctx.fillText(`${windSpeedKmh} km/h`, 190, 72);
 
+    // Humidity
+    ctx.fillStyle = "#666666";
+    ctx.fillText("Humidity: ", 20, 108);
+    ctx.fillStyle = "#000000";
+    ctx.fillText(`${currentWeather.main.humidity}%`, 150, 108);
+
+    // Feels Like
+    ctx.fillStyle = "#666666";
+    ctx.fillText("Feels Like: ", 20, 144); // Position below Humidity (108 + 36 = 144)
+    ctx.fillStyle = "#000000";
+    ctx.fillText(`${Math.round(currentWeather.main.feels_like)}°C`, 175, 144);
+
     // Rain
     ctx.fillStyle = "#666666";
     const rainTextStart =
@@ -269,17 +282,27 @@ export default async function handler(
       72
     );
 
-    // Humidity
-    ctx.fillStyle = "#666666";
-    ctx.fillText("Humidity: ", 20, 108);
-    ctx.fillStyle = "#000000";
-    ctx.fillText(`${currentWeather.main.humidity}%`, 150, 108);
-
     // UV Index
     ctx.fillStyle = "#666666";
-    ctx.fillText("UV Index: ", 20, 144);
+    // Use the x-coordinate of Rain (rainTextStart) and the y-coordinate of Humidity (108)
+    ctx.fillText("UV Index: ", rainTextStart, 108);
     ctx.fillStyle = "#000000";
-    ctx.fillText(uvIndex.toFixed(1), 160, 144);
+    ctx.fillText(
+      uvIndex.toFixed(1),
+      rainTextStart + ctx.measureText("UV Index: ").width,
+      108
+    );
+
+    // Weather Description
+    ctx.fillStyle = "#666666";
+    // Position Weather Description below UV Index (108 + 36 = 144)
+    ctx.fillText("Currently: ", rainTextStart, 144);
+    ctx.fillStyle = "#000000";
+    ctx.fillText(
+      currentWeather.weather[0].description,
+      rainTextStart + ctx.measureText("Currently: ").width,
+      144
+    );
 
     // Draw forecast graph in bottom half
     const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
