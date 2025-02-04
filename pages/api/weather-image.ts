@@ -294,15 +294,8 @@ export default async function handler(
     );
 
     // Weather Description
-    ctx.fillStyle = "#666666";
-    // Position Weather Description below UV Index (108 + 36 = 144)
-    ctx.fillText("Currently: ", rainTextStart, 144);
     ctx.fillStyle = "#000000";
-    ctx.fillText(
-      currentWeather.weather[0].description,
-      rainTextStart + ctx.measureText("Currently: ").width,
-      144
-    );
+    ctx.fillText(currentWeather.weather[0].description, rainTextStart, 144);
 
     // Draw forecast graph in bottom half
     const graphMargin = { top: 230, right: 40, bottom: 40, left: 40 };
