@@ -64,6 +64,8 @@ function removeEmojis(text: string): string {
       ""
     )
     .replace(/[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}]/gu, "") // Remove variation selectors and skin tones
+    .replace(/[\u2018\u2019]/g, "'") // Convert smart quotes to straight apostrophes
+    .replace(/[\u201C\u201D]/g, '"') // Convert smart quotes to straight quotes
     .replace(/\s+/g, " ") // Replace multiple spaces with single space
     .trim();
 }
