@@ -338,7 +338,7 @@ export default async function handler(
         ctx.font = "32px Mania";
 
         let title = removeEmojis(event.summary || "Untitled Event");
-        const maxWidth = columnWidth - 90;
+        const maxWidth = columnWidth - 80;
         if (ctx.measureText(title).width > maxWidth) {
           let truncated = title;
           while (ctx.measureText(truncated + "...").width > maxWidth) {
@@ -347,7 +347,7 @@ export default async function handler(
           title = truncated + "...";
         }
 
-        ctx.fillText(title, xPosition + 90, yPosition);
+        ctx.fillText(title, xPosition + 80, yPosition);
         yPosition += 45;
       }
 
