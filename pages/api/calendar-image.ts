@@ -105,24 +105,34 @@ function expandRecurringEvents(
   events.forEach((event) => {
     if (!event.start || !event.type || event.type !== "VEVENT") return;
 
+    // Normalize dates for comparison
+    const eventStart = new Date(event.start);
+    if (event.datetype === "date") {
+      // For full-day events, set time to midnight UTC
+      eventStart.setUTCHours(0, 0, 0, 0);
+    }
+
     // Handle non-recurring events
     if (!event.rrule) {
-      if (event.start >= startDate && event.start <= endDate) {
+      if (eventStart >= startDate && eventStart <= endDate) {
         expandedEvents.push(event);
       }
       return;
     }
 
     // Handle recurring events
-    const dates = event.rrule.between(startDate, endDate);
+    const dates = event.rrule.between(startDate, endDate, true); // Add true to be inclusive
     dates.forEach((date) => {
-      expandedEvents.push({
-        ...event,
-        start: date,
-        end: new Date(
-          date.getTime() + (event.end.getTime() - event.start.getTime())
-        ),
-      });
+      const newEvent = { ...event };
+      if (event.datetype === "date") {
+        // Maintain the full-day event property
+        date.setUTCHours(0, 0, 0, 0);
+      }
+      newEvent.start = date;
+      newEvent.end = new Date(
+        date.getTime() + (event.end.getTime() - event.start.getTime())
+      );
+      expandedEvents.push(newEvent);
     });
   });
 

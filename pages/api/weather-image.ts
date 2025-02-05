@@ -170,7 +170,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const location = (req.query.location as string) || "Sheffield,UK";
+    const location = (req.query.location as string) || "London,UK";
 
     // Load weather icons before proceeding
     await loadWeatherIcons();
