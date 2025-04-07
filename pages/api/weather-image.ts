@@ -215,16 +215,19 @@ export default async function handler(
     // Current weather title
     ctx.font = "42px Mania";
     const now = new Date();
-    const dateTimeStr =
-      now.toLocaleDateString("en-UK", {
-        weekday: "short",
-      }) +
-      " " +
-      now.toLocaleTimeString("en-UK", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    ctx.fillText(`Weather ${location.split(",")[0]}, ${dateTimeStr}`, 20, 15);
+    const dateTimeFormatter = new Intl.DateTimeFormat("en-UK", {
+      timeZone: "Europe/London",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const formattedDateTimeStr = dateTimeFormatter.format(now);
+    ctx.fillText(
+      `Weather ${location.split(",")[0]}, ${formattedDateTimeStr}`,
+      20,
+      15
+    );
 
     ctx.fillStyle = "#000000";
 
