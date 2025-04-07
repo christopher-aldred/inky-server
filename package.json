@@ -10,7 +10,7 @@
   "dependencies": {
     "@napi-rs/canvas": "^0.1.65",
     "axios": "^1.7.9",
-    "canvas": "^3.0.1",
+    "canvas": "3.0.0",
     "fast-xml-parser": "^4.5.1",
     "next": "latest",
     "node-ical": "^0.20.1",
