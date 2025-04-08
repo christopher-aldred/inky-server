@@ -37,7 +37,18 @@ function isNighttime(
   sunrise: number,
   sunset: number
 ): boolean {
-  return timestamp > sunset || timestamp < sunrise;
+  const now = new Date(timestamp * 1000); // Convert from seconds to milliseconds
+  const currentTime = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60; // Time in seconds since start of the day
+
+  const sunriseTime = new Date(sunrise * 1000);
+  const sunriseSeconds =
+    sunriseTime.getUTCHours() * 3600 + sunriseTime.getUTCMinutes() * 60;
+
+  const sunsetTime = new Date(sunset * 1000);
+  const sunsetSeconds =
+    sunsetTime.getUTCHours() * 3600 + sunsetTime.getUTCMinutes() * 60;
+
+  return currentTime > sunsetSeconds || currentTime < sunriseSeconds;
 }
 
 function getWeatherIcon(
