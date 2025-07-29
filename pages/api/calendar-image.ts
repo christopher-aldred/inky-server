@@ -87,7 +87,6 @@ function groupEventsByDate(events: any[]): Map<string, any[]> {
   const groupedEvents = new Map<string, any[]>();
 
   events.forEach((event) => {
-    console.log(event);
     const dateKey = formatDate(event.start);
     if (!groupedEvents.has(dateKey)) {
       groupedEvents.set(dateKey, []);
@@ -108,6 +107,65 @@ function groupEventsByDate(events: any[]): Map<string, any[]> {
     });
 
   return filteredEvents;
+}
+
+// Helper function to check if a date is excluded by exdate
+function isDateExcluded(date: Date, exdates: any, isAllDay: boolean): boolean {
+  if (!exdates) {
+    return false;
+  }
+
+  // Convert the date to check into a comparable format
+  let dateToCheck: Date;
+  if (isAllDay) {
+    // For all-day events, normalize to midnight UTC
+    dateToCheck = new Date(date);
+    dateToCheck.setUTCHours(0, 0, 0, 0);
+  } else {
+    dateToCheck = new Date(date);
+  }
+
+  // The exdate object has date keys directly as properties
+  const dateKeys = Object.keys(exdates);
+
+  for (const dateKey of dateKeys) {
+    const exdateValue = exdates[dateKey];
+    
+    let excludedDate: Date;
+    
+    if (exdateValue && typeof exdateValue === 'object' && 'getTime' in exdateValue) {
+      // exdateValue is already a Date object - use it directly without modification
+      excludedDate = new Date(exdateValue as Date);
+    } else {
+      // Try to parse the key as a date string (YYYY-MM-DD format)
+      excludedDate = new Date(dateKey + 'T00:00:00.000Z');
+    }
+
+    // For all-day events, check if the excluded date + 1 hour equals the date to check
+    // This handles the timezone issue where July 28th 23:00 UTC = July 29th 00:00 UTC (in UK timezone)
+    if (isAllDay && exdateValue && typeof exdateValue === 'object' && 'getTime' in exdateValue) {
+      const excludedDatePlus1Hour = new Date(excludedDate.getTime() + 60 * 60 * 1000); // Add 1 hour
+      
+      if (dateToCheck.getTime() === excludedDatePlus1Hour.getTime()) {
+        return true;
+      }
+    }
+
+    // Compare the dates directly
+    if (dateToCheck.getTime() === excludedDate.getTime()) {
+      return true;
+    }
+
+    // Also check if they're the same calendar date (for timezone edge cases)
+    if (isAllDay &&
+        dateToCheck.getUTCFullYear() === excludedDate.getUTCFullYear() &&
+        dateToCheck.getUTCMonth() === excludedDate.getUTCMonth() &&
+        dateToCheck.getUTCDate() === excludedDate.getUTCDate()) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function expandRecurringEvents(
@@ -137,7 +195,13 @@ function expandRecurringEvents(
 
     // Handle recurring events
     const dates = event.rrule.between(startDate, endDate, true); // Add true to be inclusive
+    
     dates.forEach((date) => {
+      // Check if this date is excluded
+      if (event.exdate && isDateExcluded(date, event.exdate, event.datetype === "date")) {
+        return; // Skip this occurrence
+      }
+
       const newEvent = { ...event };
       if (event.datetype === "date") {
         // Maintain the full-day event property
@@ -214,17 +278,14 @@ async function getCalDavEvents(
 }
 
 async function getIcalEvents(url: string): Promise<any[]> {
-  console.log(`Fetching iCal from: ${url}`);
   const response = await axios.get(url, {
     timeout: 10000, // 10 second timeout
     headers: {
       "User-Agent": "Calendar-Display/1.0",
     },
   });
-  console.log(`iCal response size: ${response.data.length} characters`);
   const events = await ical.async.parseICS(response.data);
   const eventArray = Object.values(events);
-  console.log(`Parsed ${eventArray.length} items from iCal`);
   return eventArray;
 }
 
@@ -234,11 +295,6 @@ async function fetchEventsFromCalendars(
 ): Promise<any[]> {
   const allEventsPromises = calendars.map(async (calendar, index) => {
     try {
-      console.log(
-        `Fetching calendar ${index + 1}/${calendars.length}: ${calendar.url}`
-      );
-      console.log(`Calendar type: ${calendar.type}`);
-
       let events: any[] = [];
       if (calendar.type === "caldav") {
         if (!calendar.username || !calendar.password) {
@@ -256,7 +312,6 @@ async function fetchEventsFromCalendars(
         events = await getIcalEvents(calendar.url);
       }
 
-      console.log(`Calendar ${index + 1} returned ${events.length} events`);
       return events;
     } catch (error) {
       console.error(
@@ -269,7 +324,6 @@ async function fetchEventsFromCalendars(
 
   const allEventsArrays = await Promise.all(allEventsPromises);
   const flattenedEvents = allEventsArrays.flat();
-  console.log(`Total events from all calendars: ${flattenedEvents.length}`);
   return flattenedEvents;
 }
 
@@ -285,7 +339,6 @@ function parseCalendarConfigs(query: any): CalendarConfig[] {
       username: query.username as string,
       password: query.password as string,
     });
-    console.log("Single calendar config:", calendars[0]);
     return calendars;
   }
 
@@ -307,15 +360,6 @@ function parseCalendarConfigs(query: any): CalendarConfig[] {
     ? [query.password]
     : [];
 
-  console.log("Parsing multiple calendars:");
-  console.log("URLs:", urls);
-  console.log("Types:", types);
-  console.log("Usernames:", usernames);
-  console.log(
-    "Passwords length:",
-    passwords.map((p) => (p ? p.length : 0))
-  );
-
   urls.forEach((url, index) => {
     if (url) {
       const config: CalendarConfig = {
@@ -325,12 +369,6 @@ function parseCalendarConfigs(query: any): CalendarConfig[] {
         password: passwords[index] as string,
       };
       calendars.push(config);
-      console.log(`Calendar ${index + 1} config:`, {
-        url: config.url,
-        type: config.type,
-        hasUsername: !!config.username,
-        hasPassword: !!config.password,
-      });
     }
   });
 
@@ -376,6 +414,8 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  console.log('Calendar image API request received');
+  
   try {
     const { location } = req.query;
 
@@ -386,8 +426,6 @@ export default async function handler(
       throw new Error("No calendar URLs provided");
     }
 
-    console.log(`Processing ${calendarConfigs.length} calendar(s)`);
-
     // Load weather icons first
     await loadWeatherIcons();
 
@@ -396,8 +434,6 @@ export default async function handler(
       fetchEventsFromCalendars(calendarConfigs),
       getWeatherForecast(location as string),
     ]);
-
-    console.log(`Found ${allEvents.length} total events from all calendars`);
 
     // Filter events for next 7 days
     const now = new Date();
@@ -466,10 +502,15 @@ export default async function handler(
       for (const event of events) {
         if (yPosition > 420) break; // Prevent overflow
 
-        // Draw time
-        ctx.font = "32px Mania";
-        ctx.fillStyle = "#666666";
-        ctx.fillText(formatTime(event.start), xPosition, yPosition);
+        // Check if this is an all-day event
+        const isAllDayEvent = event.datetype === "date";
+
+        // Draw time only for non-all-day events
+        if (!isAllDayEvent) {
+          ctx.font = "32px Mania";
+          ctx.fillStyle = "#666666";
+          ctx.fillText(formatTime(event.start), xPosition, yPosition);
+        }
 
         // Draw event title
         ctx.fillStyle = "#000000";
@@ -482,7 +523,8 @@ export default async function handler(
         }
 
         let title = removeEmojis(summary || "Untitled Event");
-        const maxWidth = columnWidth - 80;
+        // Adjust maxWidth based on whether time is displayed
+        const maxWidth = isAllDayEvent ? columnWidth - 20 : columnWidth - 80;
         if (ctx.measureText(title).width > maxWidth) {
           let truncated = title;
           while (ctx.measureText(truncated + "...").width > maxWidth) {
@@ -491,7 +533,9 @@ export default async function handler(
           title = truncated + "...";
         }
 
-        ctx.fillText(title, xPosition + 80, yPosition);
+        // Position title based on whether time is displayed
+        const titleXPosition = isAllDayEvent ? xPosition : xPosition + 80;
+        ctx.fillText(title, titleXPosition, yPosition);
         yPosition += 45;
       }
 
