@@ -12,6 +12,14 @@ registerFont(fontPath, { family: "Mania" });
 // Weather icons setup
 const weatherIcons: { [key: string]: any } = {};
 
+// Types for calendar configuration
+interface CalendarConfig {
+  url: string;
+  type: "ical" | "caldav";
+  username?: string;
+  password?: string;
+}
+
 async function loadWeatherIcons() {
   const iconTypes = ["clear", "cloudy", "fog", "rain", "snow", "thunderstorm"];
   for (const type of iconTypes) {
@@ -146,7 +154,7 @@ function expandRecurringEvents(
   return expandedEvents;
 }
 
-// Calendar data fetching
+// Calendar data fetching functions
 async function getCalDavEvents(
   serverUrl: string,
   username: string,
@@ -206,9 +214,127 @@ async function getCalDavEvents(
 }
 
 async function getIcalEvents(url: string): Promise<any[]> {
-  const response = await axios.get(url);
+  console.log(`Fetching iCal from: ${url}`);
+  const response = await axios.get(url, {
+    timeout: 10000, // 10 second timeout
+    headers: {
+      "User-Agent": "Calendar-Display/1.0",
+    },
+  });
+  console.log(`iCal response size: ${response.data.length} characters`);
   const events = await ical.async.parseICS(response.data);
-  return Object.values(events);
+  const eventArray = Object.values(events);
+  console.log(`Parsed ${eventArray.length} items from iCal`);
+  return eventArray;
+}
+
+// Enhanced function to fetch events from multiple calendars
+async function fetchEventsFromCalendars(
+  calendars: CalendarConfig[]
+): Promise<any[]> {
+  const allEventsPromises = calendars.map(async (calendar, index) => {
+    try {
+      console.log(
+        `Fetching calendar ${index + 1}/${calendars.length}: ${calendar.url}`
+      );
+      console.log(`Calendar type: ${calendar.type}`);
+
+      let events: any[] = [];
+      if (calendar.type === "caldav") {
+        if (!calendar.username || !calendar.password) {
+          console.warn(
+            `Skipping CalDAV calendar ${calendar.url} - missing credentials`
+          );
+          return [];
+        }
+        events = await getCalDavEvents(
+          calendar.url,
+          calendar.username,
+          calendar.password
+        );
+      } else {
+        events = await getIcalEvents(calendar.url);
+      }
+
+      console.log(`Calendar ${index + 1} returned ${events.length} events`);
+      return events;
+    } catch (error) {
+      console.error(
+        `Error fetching calendar ${index + 1} (${calendar.url}):`,
+        error
+      );
+      return []; // Return empty array for failed calendars
+    }
+  });
+
+  const allEventsArrays = await Promise.all(allEventsPromises);
+  const flattenedEvents = allEventsArrays.flat();
+  console.log(`Total events from all calendars: ${flattenedEvents.length}`);
+  return flattenedEvents;
+}
+
+// Parse calendar configurations from query parameters
+function parseCalendarConfigs(query: any): CalendarConfig[] {
+  const calendars: CalendarConfig[] = [];
+
+  // Handle single calendar (backward compatibility)
+  if (query.url && !Array.isArray(query.url)) {
+    calendars.push({
+      url: query.url as string,
+      type: (query.type as "ical" | "caldav") || "ical",
+      username: query.username as string,
+      password: query.password as string,
+    });
+    console.log("Single calendar config:", calendars[0]);
+    return calendars;
+  }
+
+  // Handle multiple calendars
+  const urls = Array.isArray(query.url) ? query.url : [query.url];
+  const types = Array.isArray(query.type)
+    ? query.type
+    : query.type
+    ? [query.type]
+    : [];
+  const usernames = Array.isArray(query.username)
+    ? query.username
+    : query.username
+    ? [query.username]
+    : [];
+  const passwords = Array.isArray(query.password)
+    ? query.password
+    : query.password
+    ? [query.password]
+    : [];
+
+  console.log("Parsing multiple calendars:");
+  console.log("URLs:", urls);
+  console.log("Types:", types);
+  console.log("Usernames:", usernames);
+  console.log(
+    "Passwords length:",
+    passwords.map((p) => (p ? p.length : 0))
+  );
+
+  urls.forEach((url, index) => {
+    if (url) {
+      const config: CalendarConfig = {
+        url: url as string,
+        type: (types[index] || "ical") as "ical" | "caldav",
+        username: usernames[index] as string,
+        password: passwords[index] as string,
+      };
+      calendars.push(config);
+      console.log(`Calendar ${index + 1} config:`, {
+        url: config.url,
+        type: config.type,
+        hasUsername: !!config.username,
+        hasPassword: !!config.password,
+      });
+    }
+  });
+
+  return calendars;
 }
 
 // Weather data fetching
@@ -251,22 +377,27 @@ export default async function handler(
   res: NextApiResponse
 ) {
   try {
-    const { url, type, username, password, location } = req.query;
+    const { location } = req.query;
 
-    if (!url) {
-      throw new Error("No calendar URL provided");
+    // Parse calendar configurations from query parameters
+    const calendarConfigs = parseCalendarConfigs(req.query);
+
+    if (calendarConfigs.length === 0) {
+      throw new Error("No calendar URLs provided");
     }
+
+    console.log(`Processing ${calendarConfigs.length} calendar(s)`);
 
     // Load weather icons first
     await loadWeatherIcons();
 
     // Fetch both calendar events and weather forecast in parallel
     const [allEvents, weatherForecast] = await Promise.all([
-      type === "caldav"
-        ? getCalDavEvents(url as string, username as string, password as string)
-        : getIcalEvents(url as string),
+      fetchEventsFromCalendars(calendarConfigs),
       getWeatherForecast(location as string),
     ]);
+
+    console.log(`Found ${allEvents.length} total events from all calendars`);
 
     // Filter events for next 7 days
     const now = new Date();
