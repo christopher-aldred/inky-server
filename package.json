@@ -11,8 +11,12 @@
     "@napi-rs/canvas": "^0.1.65",
     "axios": "^1.7.9",
     "canvas": "3.0.0",
+    "dav": "^1.8.0",
     "fast-xml-parser": "^4.5.1",
+    "ical-expander": "^3.1.0",
+    "ical.js": "^2.2.0",
     "next": "latest",
+    "node-fetch": "^3.3.2",
     "node-ical": "^0.20.1",
     "react": "latest",
     "react-dom": "latest",
@@ -21,6 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.6",
+    "@types/node-fetch": "^2.6.13",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "vercel": "latest"
