@@ -67,41 +67,42 @@ async function fetchICalData(url: string): Promise<string> {
   }
   return response.text();
 }
-
 function addEventToCalendarData(calendarData: CalendarData, event: any): void {
   const startDate = event.startDate?.toJSDate() || new Date(event.startDate);
+  const endDate = event.endDate?.toJSDate() || new Date(event.endDate);
 
   const isAllDay =
     event.isAllDay ||
     (event.item && event.item.isAllDay) ||
     (event.startDate?.isDate && event.endDate?.isDate);
 
-  let dateKey: string;
-  let timeKey: string;
-
-  if (isAllDay) {
-    const year = startDate.getFullYear();
-    const month = String(startDate.getMonth() + 1).padStart(2, "0");
-    const day = String(startDate.getDate()).padStart(2, "0");
-    dateKey = `${year}-${month}-${day}`;
-    timeKey = "allday";
-  } else {
-    dateKey = startDate.toISOString().split("T")[0];
-    timeKey = startDate.toTimeString().slice(0, 5);
-  }
-
   const title = event.summary || event.item?.summary || "Untitled Event";
 
-  if (!calendarData[dateKey]) {
-    calendarData[dateKey] = {};
-  }
+  // Normalize time part for all-day events
+  const timeKey = isAllDay ? "allday" : startDate.toTimeString().slice(0, 5);
 
-  if (!calendarData[dateKey][timeKey]) {
-    calendarData[dateKey][timeKey] = [];
-  }
+  // Iterate through each day the event spans
+  const currentDate = new Date(startDate);
+  while (currentDate <= endDate) {
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+    const day = String(currentDate.getDate()).padStart(2, "0");
+    const dateKey = `${year}-${month}-${day}`;
 
-  if (!calendarData[dateKey][timeKey].includes(title)) {
-    calendarData[dateKey][timeKey].push(title);
+    if (!calendarData[dateKey]) {
+      calendarData[dateKey] = {};
+    }
+
+    if (!calendarData[dateKey][timeKey]) {
+      calendarData[dateKey][timeKey] = [];
+    }
+
+    if (!calendarData[dateKey][timeKey].includes(title)) {
+      calendarData[dateKey][timeKey].push(title);
+    }
+
+    // Move to next day
+    currentDate.setDate(currentDate.getDate() + 1);
   }
 }
 
