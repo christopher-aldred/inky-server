@@ -22,7 +22,7 @@ export async function convertCalendarsToJSON(
 ): Promise<CalendarData> {
   const calendarData: CalendarData = {};
 
-  const today = new Date();
+  const today = new Date(new Date().setUTCHours(0, 0, 0, 0));
   const oneMonthFromNow = new Date();
   oneMonthFromNow.setMonth(today.getMonth() + 1);
 
