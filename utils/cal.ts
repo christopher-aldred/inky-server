@@ -67,27 +67,38 @@ async function fetchICalData(url: string): Promise<string> {
   }
   return response.text();
 }
+
 function addEventToCalendarData(calendarData: CalendarData, event: any): void {
   const startDate = event.startDate?.toJSDate() || new Date(event.startDate);
-  const endDate = event.endDate?.toJSDate() || new Date(event.endDate);
+  let endDate = event.endDate?.toJSDate() || new Date(event.endDate);
 
   const isAllDay =
     event.isAllDay ||
     (event.item && event.item.isAllDay) ||
     (event.startDate?.isDate && event.endDate?.isDate);
 
+  // Adjust end date for all-day events (exclusive end date)
+  if (isAllDay) {
+    endDate = new Date(endDate);
+    endDate.setDate(endDate.getDate() - 1);
+  }
+
   const title = event.summary || event.item?.summary || "Untitled Event";
 
-  // Normalize time part for all-day events
-  const timeKey = isAllDay ? "allday" : startDate.toTimeString().slice(0, 5);
-
-  // Iterate through each day the event spans
   const currentDate = new Date(startDate);
+  let isFirstDay = true;
+
   while (currentDate <= endDate) {
     const year = currentDate.getFullYear();
     const month = String(currentDate.getMonth() + 1).padStart(2, "0");
     const day = String(currentDate.getDate()).padStart(2, "0");
     const dateKey = `${year}-${month}-${day}`;
+
+    const timeKey = isAllDay
+      ? "allday"
+      : isFirstDay
+      ? startDate.toTimeString().slice(0, 5)
+      : "allday";
 
     if (!calendarData[dateKey]) {
       calendarData[dateKey] = {};
@@ -101,18 +112,9 @@ function addEventToCalendarData(calendarData: CalendarData, event: any): void {
       calendarData[dateKey][timeKey].push(title);
     }
 
-    // Move to next day
     currentDate.setDate(currentDate.getDate() + 1);
+    isFirstDay = false;
   }
-}
-
-/**
- * Helper function for single calendar URL
- */
-export async function convertSingleCalendar(
-  url: string
-): Promise<CalendarData> {
-  return convertCalendarsToJSON([url]);
 }
 
 /**
