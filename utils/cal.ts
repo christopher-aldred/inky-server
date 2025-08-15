@@ -41,11 +41,11 @@ export async function convertCalendarsToJSON(
       const expandedEvents = icalExpander.between(today, oneMonthFromNow);
 
       expandedEvents.events.forEach((event) => {
-        addEventToCalendarData(calendarData, event);
+        addEventToCalendarData(calendarData, event, today);
       });
 
       expandedEvents.occurrences.forEach((occurrence) => {
-        addEventToCalendarData(calendarData, occurrence);
+        addEventToCalendarData(calendarData, occurrence, today);
       });
     } catch (error) {
       console.warn(
@@ -68,8 +68,8 @@ async function fetchICalData(url: string): Promise<string> {
   return response.text();
 }
 
-function addEventToCalendarData(calendarData: CalendarData, event: any): void {
-  const startDate = event.startDate?.toJSDate() || new Date(event.startDate);
+function addEventToCalendarData(calendarData: CalendarData, event: any, queryStartDate: Date): void {
+  const originalStartDate = event.startDate?.toJSDate() || new Date(event.startDate);
   let endDate = event.endDate?.toJSDate() || new Date(event.endDate);
 
   const isAllDay =
@@ -85,8 +85,10 @@ function addEventToCalendarData(calendarData: CalendarData, event: any): void {
 
   const title = event.summary || event.item?.summary || "Untitled Event";
 
-  const currentDate = new Date(startDate);
-  let isFirstDay = true;
+  // Truncate the start date to the query start date if the event started before our query range
+  const effectiveStartDate = new Date(Math.max(originalStartDate.getTime(), queryStartDate.getTime()));
+  
+  const currentDate = new Date(effectiveStartDate);
 
   while (currentDate <= endDate) {
     const year = currentDate.getFullYear();
@@ -94,10 +96,13 @@ function addEventToCalendarData(calendarData: CalendarData, event: any): void {
     const day = String(currentDate.getDate()).padStart(2, "0");
     const dateKey = `${year}-${month}-${day}`;
 
+    // For multi-day events, use the time from the original start date only on the first day
+    // of the original event. For truncated events (starting mid-way), treat as all-day
+    const isOriginalFirstDay = currentDate.getTime() === originalStartDate.getTime();
     const timeKey = isAllDay
       ? "allday"
-      : isFirstDay
-      ? startDate.toTimeString().slice(0, 5)
+      : isOriginalFirstDay
+      ? originalStartDate.toTimeString().slice(0, 5)
       : "allday";
 
     if (!calendarData[dateKey]) {
@@ -113,7 +118,6 @@ function addEventToCalendarData(calendarData: CalendarData, event: any): void {
     }
 
     currentDate.setDate(currentDate.getDate() + 1);
-    isFirstDay = false;
   }
 }
 
