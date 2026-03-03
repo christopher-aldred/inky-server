@@ -29,7 +29,7 @@ async function loadWeatherIcons() {
   const iconTypes = ["clear", "cloudy", "fog", "rain", "snow", "thunderstorm"];
   for (const type of iconTypes) {
     weatherIcons[type] = await loadImage(
-      path.join(process.cwd(), "public", "icons", `${type}.png`)
+      path.join(process.cwd(), "public", "icons", `${type}.png`),
     );
   }
 }
@@ -72,7 +72,7 @@ function removeEmojis(text: string): string {
   return text
     .replace(
       /[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}-\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu,
-      ""
+      "",
     )
     .replace(/[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}]/gu, "")
     .replace(/[\u2018\u2019]/g, "'")
@@ -115,7 +115,7 @@ function processCalendarData(calendarData: CalendarData): ProcessedEvent[] {
 
 // Group events by date
 function groupEventsByDate(
-  events: ProcessedEvent[]
+  events: ProcessedEvent[],
 ): Map<string, ProcessedEvent[]> {
   const groupedEvents = new Map<string, ProcessedEvent[]>();
 
@@ -143,7 +143,7 @@ function groupEventsByDate(
 async function getWeatherForecast(location: string = "Sheffield,UK") {
   const OPENWEATHER_API_KEY = "693c1f1df284ff1be69d05f2b09d015c";
   const response = await axios.get(
-    `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
+    `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`,
   );
 
   interface WeatherForecast {
@@ -176,7 +176,7 @@ async function getWeatherForecast(location: string = "Sheffield,UK") {
 // Main handler
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   console.log("Calendar image API request received");
 
@@ -334,7 +334,7 @@ export default async function handler(
         x + 75,
         weatherStripY - 3,
         weatherIconSize,
-        weatherIconSize
+        weatherIconSize,
       );
 
       // Draw temperature
