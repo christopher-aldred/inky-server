@@ -402,8 +402,8 @@ export default async function handler(
     // Rotate final output 90deg the other way so final image is 1600x1200 (landscape)
     const rotatedCanvas = createCanvas(canvasHeight, canvasWidth);
     const rctx = rotatedCanvas.getContext("2d");
-    rctx.translate(0, canvasWidth);
-    rctx.rotate(-Math.PI / 2);
+    rctx.translate(canvasHeight, 0);
+    rctx.rotate(Math.PI / 2);
     rctx.drawImage(canvas, 0, 0);
 
     const buffer = rotatedCanvas.toBuffer("image/jpeg");
