@@ -399,7 +399,19 @@ export default async function handler(
       ctx.fillText(`${forecast.temp}°`, x + 120, weatherStripY + 15);
     });
 
-    const buffer = canvas.toBuffer("image/jpeg");
+    // Rotate final output 90deg clockwise so final image is 1600x1200 (landscape)
+    const rotatedCanvas = createCanvas(canvasHeight, canvasWidth);
+    const rctx = rotatedCanvas.getContext("2d");
+    // Fill background to avoid black/transparent areas after rotation
+    rctx.fillStyle = "#ffffff";
+    rctx.fillRect(0, 0, rotatedCanvas.width, rotatedCanvas.height);
+
+    // Rotate clockwise: move origin to bottom-left, rotate -90deg, then draw
+    rctx.translate(0, canvasWidth);
+    rctx.rotate(-Math.PI / 2);
+    rctx.drawImage(canvas, 0, 0);
+
+    const buffer = rotatedCanvas.toBuffer("image/jpeg");
     res.setHeader("Content-Type", "image/jpeg");
     res.send(buffer);
   } catch (error: any) {
