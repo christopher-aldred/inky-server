@@ -340,7 +340,7 @@ export default async function handler(
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 400;
+    const weatherStripY = scaledYOffset + 390;
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
