@@ -270,7 +270,7 @@ export default async function handler(
 
     // ---- 4 COLUMN LAYOUT ----
     const totalColumns = 4;
-    const horizontalPadding = 20; // tighter edge padding to fit more text
+    const horizontalPadding = 20;
     const usableWidth = canvasWidth / scaleX - horizontalPadding * 2;
     const columnWidth = usableWidth / totalColumns;
     const dividerOffset = -12; // shift vertical dividers slightly left
@@ -293,28 +293,6 @@ export default async function handler(
       ctx.moveTo(xPosition, yPosition + 10);
       ctx.lineTo(xPosition + columnWidth - 14, yPosition + 10);
       ctx.stroke();
-
-      // Weather badge aligned with the date (if available)
-      const matchingForecast = weatherForecast.find(
-        (forecast) => formatDate(forecast.date.toISOString()) === date,
-      );
-
-      // if (matchingForecast) {
-      //   const iconKey = getWeatherIcon(matchingForecast.weather);
-      //   const iconSize = 28;
-      //   const iconX = xPosition + columnWidth - iconSize - 12;
-      //   const iconY = yPosition - iconSize + 4;
-
-      //   const tempText = `${matchingForecast.temp}°`;
-      //   ctx.font = "18px Mania";
-      //   ctx.fillStyle = "#666";
-      //   const tempWidth = ctx.measureText(tempText).width;
-      //   const tempX = iconX - tempWidth - 8;
-      //   const tempY = yPosition + 8;
-
-      //   ctx.fillText(tempText, tempX, tempY);
-      //   ctx.drawImage(weatherIcons[iconKey], iconX, iconY, iconSize, iconSize);
-      // }
 
       yPosition += 40;
 
@@ -357,19 +335,19 @@ export default async function handler(
       const dividerX = horizontalPadding + i * columnWidth + dividerOffset;
       ctx.beginPath();
       ctx.moveTo(dividerX, scaledYOffset + 80);
-      ctx.lineTo(dividerX, scaledYOffset + 410);
+      ctx.lineTo(dividerX, scaledYOffset + 380);
       ctx.stroke();
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 420; // lift weather strip to leave padding below
+    const weatherStripY = scaledYOffset + 400;
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
     // Bottom border for the main grid above the strip
     ctx.beginPath();
-    ctx.moveTo(0, scaledYOffset + 410);
-    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 410);
+    ctx.moveTo(0, scaledYOffset + 380);
+    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 380);
     ctx.stroke();
 
     weatherForecast.forEach((forecast, index) => {
