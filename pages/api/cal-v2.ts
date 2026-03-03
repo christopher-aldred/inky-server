@@ -270,7 +270,7 @@ export default async function handler(
 
     // ---- 4 COLUMN LAYOUT ----
     const totalColumns = 4;
-    const horizontalPadding = 30;
+    const horizontalPadding = 20; // tighter edge padding to fit more text
     const usableWidth = canvasWidth / scaleX - horizontalPadding * 2;
     const columnWidth = usableWidth / totalColumns;
     const dividerOffset = -12; // shift vertical dividers slightly left
@@ -362,7 +362,7 @@ export default async function handler(
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 430;
+    const weatherStripY = scaledYOffset + 420; // lift weather strip to leave padding below
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
@@ -399,14 +399,9 @@ export default async function handler(
       ctx.fillText(`${forecast.temp}°`, x + 120, weatherStripY + 15);
     });
 
-    // Rotate final output 90deg clockwise so final image is 1600x1200 (landscape)
+    // Rotate final output 90deg the other way so final image is 1600x1200 (landscape)
     const rotatedCanvas = createCanvas(canvasHeight, canvasWidth);
     const rctx = rotatedCanvas.getContext("2d");
-    // Fill background to avoid black/transparent areas after rotation
-    rctx.fillStyle = "#ffffff";
-    rctx.fillRect(0, 0, rotatedCanvas.width, rotatedCanvas.height);
-
-    // Rotate clockwise: move origin to bottom-left, rotate -90deg, then draw
     rctx.translate(0, canvasWidth);
     rctx.rotate(-Math.PI / 2);
     rctx.drawImage(canvas, 0, 0);
