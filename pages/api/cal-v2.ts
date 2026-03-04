@@ -73,25 +73,32 @@ function processCalendarData(calendarData: CalendarData): ProcessedEvent[] {
 function groupEventsByDate(
   events: ProcessedEvent[],
 ): Map<string, ProcessedEvent[]> {
-  const groupedEvents = new Map<string, ProcessedEvent[]>();
+  const groupedByDate = new Map<string, ProcessedEvent[]>();
 
-  events.forEach((event) => {
-    const dateKey = formatDate(event.date);
-    if (!groupedEvents.has(dateKey)) {
-      groupedEvents.set(dateKey, []);
-    }
-    groupedEvents.get(dateKey)?.push(event);
+  // Group by the raw YYYY-MM-DD date key for stable ordering
+  events.forEach((event) =>
+    groupedByDate.set(event.date, [
+      ...(groupedByDate.get(event.date) ?? []),
+      event,
+    ]),
+  );
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Collect the earliest 4 upcoming event dates (inclusive of today)
+  const desiredDateKeys = Array.from(groupedByDate.keys())
+    .filter((dateKey) => new Date(dateKey).getTime() >= today.getTime())
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+    .slice(0, 4);
+
+  const finalEvents = new Map<string, ProcessedEvent[]>();
+
+  desiredDateKeys.forEach((dateKey) => {
+    finalEvents.set(formatDate(dateKey), groupedByDate.get(dateKey) ?? []);
   });
 
-  const filteredEvents = new Map<string, ProcessedEvent[]>();
-  Array.from(groupedEvents.entries())
-    .filter(([_, dayEvents]) => dayEvents.length > 0)
-    .slice(0, 4) // show up to 4 days
-    .forEach(([date, events]) => {
-      filteredEvents.set(date, events);
-    });
-
-  return filteredEvents;
+  return finalEvents;
 }
 
 export default async function handler(

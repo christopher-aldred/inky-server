@@ -19,36 +19,60 @@ export async function convertCalendarsToJSON(
   const calendarData: CalendarData = {};
 
   const today = new Date(new Date().setUTCHours(0, 0, 0, 0));
-  const oneMonthFromNow = new Date();
-  oneMonthFromNow.setMonth(today.getMonth() + 1);
 
-  for (const source of sources) {
-    const sourceObj: CalendarSource =
-      typeof source === "string" ? { url: source } : source;
+  // Fetch once per source, then expand the window in 3-month steps up to 12 months
+  // until we surface at least four unique event days (or exhaust the window).
+  const sourceObjs: CalendarSource[] = sources.map((source) =>
+    typeof source === "string" ? { url: source } : source,
+  );
 
-    try {
-      const icalData = await fetchICalData(sourceObj.url);
+  const icalCache = new Map<string, string>();
 
-      const icalExpander = new IcalExpander({
-        ics: icalData,
-        maxIterations: 1000,
-      });
+  const processWindow = async (windowEnd: Date) => {
+    for (const sourceObj of sourceObjs) {
+      try {
+        if (!icalCache.has(sourceObj.url)) {
+          icalCache.set(sourceObj.url, await fetchICalData(sourceObj.url));
+        }
 
-      const expandedEvents = icalExpander.between(today, oneMonthFromNow);
+        const icalExpander = new IcalExpander({
+          ics: icalCache.get(sourceObj.url) as string,
+          maxIterations: 5000,
+        });
 
-      expandedEvents.events.forEach((event: IcalEvent) => {
-        addEventToCalendarData(calendarData, event, today);
-      });
+        const expandedEvents = icalExpander.between(today, windowEnd);
 
-      expandedEvents.occurrences.forEach((occurrence: IcalOccurrence) => {
-        addEventToCalendarData(calendarData, occurrence, today);
-      });
-    } catch (error) {
-      console.warn(
-        `Failed to process calendar source ${sourceObj.url}:`,
-        error,
-      );
+        expandedEvents.events.forEach((event: IcalEvent) => {
+          addEventToCalendarData(calendarData, event, today);
+        });
+
+        expandedEvents.occurrences.forEach((occurrence: IcalOccurrence) => {
+          addEventToCalendarData(calendarData, occurrence, today);
+        });
+      } catch (error) {
+        console.warn(
+          `Failed to process calendar source ${sourceObj.url}:`,
+          error,
+        );
+      }
     }
+  };
+
+  const stepMonths = 3;
+  const maxMonths = 12;
+  let months = stepMonths;
+
+  while (months <= maxMonths) {
+    const windowEnd = new Date(today);
+    windowEnd.setMonth(windowEnd.getMonth() + months);
+
+    await processWindow(windowEnd);
+
+    if (Object.keys(calendarData).length >= 4) {
+      break;
+    }
+
+    months += stepMonths;
   }
 
   return calendarData;
