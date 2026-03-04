@@ -1,15 +1,17 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas, registerFont, loadImage } from "canvas";
-import axios from "axios";
 import path from "path";
 import { convertCalendarsToJSON } from "../../utils/cal";
+import {
+  getWeatherForecast,
+  getWeatherIcon,
+  loadWeatherIcons,
+  weatherIcons,
+} from "../../utils/weather";
 
 // Register Mania font
 const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
 registerFont(fontPath, { family: "Mania" });
-
-// Weather icons setup
-const weatherIcons: { [key: string]: any } = {};
 
 // Types for calendar data
 interface CalendarData {
@@ -23,36 +25,6 @@ interface ProcessedEvent {
   time: string;
   title: string;
   isAllDay: boolean;
-}
-
-async function loadWeatherIcons() {
-  const iconTypes = ["clear", "cloudy", "fog", "rain", "snow", "thunderstorm"];
-  for (const type of iconTypes) {
-    weatherIcons[type] = await loadImage(
-      path.join(process.cwd(), "public", "icons", `${type}.png`),
-    );
-  }
-}
-
-function getWeatherIcon(weatherMain: string): string {
-  switch (weatherMain.toLowerCase()) {
-    case "clear":
-      return "clear";
-    case "clouds":
-      return "cloudy";
-    case "mist":
-    case "fog":
-      return "fog";
-    case "rain":
-    case "drizzle":
-      return "rain";
-    case "snow":
-      return "snow";
-    case "thunderstorm":
-      return "thunderstorm";
-    default:
-      return "clear";
-  }
 }
 
 // Helper functions for dates and formatting
@@ -137,40 +109,6 @@ function groupEventsByDate(
     });
 
   return filteredEvents;
-}
-
-// Weather data fetching
-async function getWeatherForecast(location: string = "Sheffield,UK") {
-  const OPENWEATHER_API_KEY = "693c1f1df284ff1be69d05f2b09d015c";
-  const response = await axios.get(
-    `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`,
-  );
-
-  interface WeatherForecast {
-    date: Date;
-    temp: number;
-    weather: string;
-  }
-  const dailyForecasts: WeatherForecast[] = [];
-  const processedDates = new Set();
-
-  for (const item of response.data.list) {
-    const date = new Date(item.dt * 1000);
-    const dateKey = date.toDateString();
-
-    if (!processedDates.has(dateKey)) {
-      processedDates.add(dateKey);
-      dailyForecasts.push({
-        date,
-        temp: Math.round(item.main.temp),
-        weather: item.weather[0].main,
-      });
-    }
-
-    if (dailyForecasts.length >= 5) break;
-  }
-
-  return dailyForecasts;
 }
 
 // Main handler

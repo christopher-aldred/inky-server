@@ -1,80 +1,20 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas, registerFont } from "canvas";
 import axios from "axios";
+import {
+  getWeatherIcon,
+  loadWeatherIcons,
+  NIGHT_ICON_TYPES,
+  weatherIcons,
+} from "../../utils/weather";
 import path from "path";
 
 // Register Mania font
 const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
 registerFont(fontPath, { family: "Mania" });
 
-// Load weather icons
-const loadImage = require("canvas").loadImage;
-const weatherIcons: { [key: string]: any } = {};
-
-function capitalize(s) {
+function capitalize(s: string) {
   return String(s[0]).toUpperCase() + String(s).slice(1);
-}
-
-async function loadWeatherIcons() {
-  const iconTypes = [
-    "clear",
-    "moon",
-    "cloudy",
-    "fog",
-    "rain",
-    "snow",
-    "thunderstorm",
-  ];
-  for (const type of iconTypes) {
-    weatherIcons[type] = await loadImage(
-      path.join(process.cwd(), "public", "icons", `${type}.png`)
-    );
-  }
-}
-
-function isNighttime(
-  timestamp: number,
-  sunrise: number,
-  sunset: number
-): boolean {
-  const now = new Date(timestamp * 1000); // Convert from seconds to milliseconds
-  const currentTime = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60; // Time in seconds since start of the day
-
-  const sunriseTime = new Date(sunrise * 1000);
-  const sunriseSeconds =
-    sunriseTime.getUTCHours() * 3600 + sunriseTime.getUTCMinutes() * 60;
-
-  const sunsetTime = new Date(sunset * 1000);
-  const sunsetSeconds =
-    sunsetTime.getUTCHours() * 3600 + sunsetTime.getUTCMinutes() * 60;
-
-  return currentTime > sunsetSeconds || currentTime < sunriseSeconds;
-}
-
-function getWeatherIcon(
-  weatherMain: string,
-  timestamp: number,
-  sunrise: number,
-  sunset: number
-): string {
-  switch (weatherMain.toLowerCase()) {
-    case "clear":
-      return isNighttime(timestamp, sunrise, sunset) ? "moon" : "clear";
-    case "clouds":
-      return "cloudy";
-    case "mist":
-    case "fog":
-      return "fog";
-    case "rain":
-    case "drizzle":
-      return "rain";
-    case "snow":
-      return "snow";
-    case "thunderstorm":
-      return "thunderstorm";
-    default:
-      return "clear";
-  }
 }
 
 interface WeatherData {
@@ -178,17 +118,17 @@ function getTemperatureColor(temp: number): string {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   try {
     const location = (req.query.location as string) || "London,UK";
 
-    // Load weather icons before proceeding
-    await loadWeatherIcons();
+    // Load weather icons before proceeding (include moon for night)
+    await loadWeatherIcons(NIGHT_ICON_TYPES);
 
     // First get current weather to get coordinates
     const currentResponse = await axios.get<CurrentWeather>(
-      `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
+      `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`,
     );
 
     // Get coordinates from current weather
@@ -197,10 +137,10 @@ export default async function handler(
     // Now use lat/lon in the parallel requests
     const [forecastResponse, uvResponse] = await Promise.all([
       axios.get<WeatherData>(
-        `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
+        `https://api.openweathermap.org/data/2.5/forecast?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`,
       ),
       axios.get<UVData>(
-        `http://api.openweathermap.org/data/2.5/uvi?appid=${OPENWEATHER_API_KEY}&lat=${lat}&lon=${lon}`
+        `http://api.openweathermap.org/data/2.5/uvi?appid=${OPENWEATHER_API_KEY}&lat=${lat}&lon=${lon}`,
       ),
     ]);
     const next24Hours = forecastResponse.data.list.slice(0, 8);
@@ -237,7 +177,7 @@ export default async function handler(
     ctx.fillText(
       `Weather ${location.split(",")[0]}, ${formattedDateTimeStr}`,
       20,
-      15
+      15,
     );
 
     ctx.fillStyle = "#000000";
@@ -247,12 +187,12 @@ export default async function handler(
     const currentTemp = `${Math.round(currentWeather.main.temp)}°C`;
 
     const iconSize = 130;
-    const weatherIcon = getWeatherIcon(
-      currentWeather.weather[0].main,
-      Math.floor(Date.now() / 1000),
-      currentWeather.sys.sunrise,
-      currentWeather.sys.sunset
-    );
+    const weatherIcon = getWeatherIcon(currentWeather.weather[0].main, {
+      timestamp: Math.floor(Date.now() / 1000),
+      sunrise: currentWeather.sys.sunrise,
+      sunset: currentWeather.sys.sunset,
+      includeNight: true,
+    });
 
     // Calculate positions for right alignment
     const tempWidth = ctx.measureText(currentTemp).width;
@@ -297,7 +237,7 @@ export default async function handler(
     ctx.fillText(
       `${precipitation.toFixed(1)} mm`,
       rainTextStart + ctx.measureText("Rain: ").width,
-      72
+      72,
     );
 
     // UV Index
@@ -308,7 +248,7 @@ export default async function handler(
     ctx.fillText(
       uvIndex.toFixed(1),
       rainTextStart + ctx.measureText("UV Index: ").width,
-      108
+      108,
     );
 
     // Weather Description
@@ -316,7 +256,7 @@ export default async function handler(
     ctx.fillText(
       capitalize(currentWeather.weather[0].description),
       rainTextStart,
-      144
+      144,
     );
 
     // Draw forecast graph in bottom half
@@ -377,7 +317,7 @@ export default async function handler(
       const x = graphMargin.left + index * (graphWidth / 7);
 
       const curvePoint = curvePoints.find(
-        (point) => Math.abs(point[0] - x) < 1
+        (point) => Math.abs(point[0] - x) < 1,
       );
       const y = curvePoint ? curvePoint[1] : points[index][1];
 
@@ -396,19 +336,19 @@ export default async function handler(
       ctx.fillText(`${Math.round(data.main.temp)}°C`, x - 15, y - 40);
 
       // Weather icons for forecast points
-      const weatherIcon = getWeatherIcon(
-        data.weather[0].main,
-        data.dt,
-        currentWeather.sys.sunrise,
-        currentWeather.sys.sunset
-      );
+      const weatherIcon = getWeatherIcon(data.weather[0].main, {
+        timestamp: data.dt,
+        sunrise: currentWeather.sys.sunrise,
+        sunset: currentWeather.sys.sunset,
+        includeNight: true,
+      });
       const smallIconSize = 40;
       ctx.drawImage(
         weatherIcons[weatherIcon],
         x - smallIconSize / 2,
         graphBottom - smallIconSize - 10,
         smallIconSize,
-        smallIconSize
+        smallIconSize,
       );
     });
 
