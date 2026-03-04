@@ -217,9 +217,9 @@ export default async function handler(
       columnGutter * (totalColumns - 1);
     const columnWidth = usableWidth / totalColumns;
     const dividerOffset = -dividerPadding; // shift left to leave right-side gap
-    const weatherStripY = scaledYOffset + 395;
+    const weatherStripY = scaledYOffset + 395; // keep overall placement
     const lineHeight = 25;
-    const maxContentY = weatherStripY - lineHeight - 10; // ensure gap above weather strip
+    const maxContentY = weatherStripY - lineHeight - 0; // reduce gap above weather strip
 
     let dayIndex = 0;
 
@@ -228,7 +228,7 @@ export default async function handler(
 
       const xPosition =
         horizontalPadding + dayIndex * (columnWidth + columnGutter);
-      let yPosition = scaledYOffset + 100;
+      let yPosition = scaledYOffset + 90; // modestly reduce top padding inside calendar grid
 
       ctx.fillStyle = "#000";
       ctx.font = "26px Mania";
@@ -281,8 +281,8 @@ export default async function handler(
       const dividerX =
         horizontalPadding + i * (columnWidth + columnGutter) + dividerOffset;
       ctx.beginPath();
-      ctx.moveTo(dividerX, scaledYOffset + 80);
-      ctx.lineTo(dividerX, maxContentY - 5);
+      ctx.moveTo(dividerX, scaledYOffset + 70);
+      ctx.lineTo(dividerX, maxContentY + 10);
       ctx.stroke();
     }
 
