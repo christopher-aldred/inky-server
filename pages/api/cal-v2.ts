@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas, registerFont, loadImage } from "canvas";
 import path from "path";
 import { convertCalendarsToJSON } from "../../utils/cal";
+import type { CalendarData } from "../../utils/cal.types";
 import {
   getWeatherForecast,
   getWeatherIcon,
@@ -12,12 +13,6 @@ import {
 // Register Mania font
 const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
 registerFont(fontPath, { family: "Mania" });
-
-interface CalendarData {
-  [date: string]: {
-    [time: string]: string[];
-  };
-}
 
 interface ProcessedEvent {
   date: string;

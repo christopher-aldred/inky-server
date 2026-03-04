@@ -14,6 +14,6 @@
     "isolatedModules": true,
     "jsx": "preserve"
   },
-  "include": ["src/**/*", "pages/**/*.ts", "utils/**/*.ts"],
+  "include": ["src/**/*", "pages/**/*.ts", "utils/**/*.ts", "types/**/*.d.ts"],
   "exclude": ["node_modules"]
 }

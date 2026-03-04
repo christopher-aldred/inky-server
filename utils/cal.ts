@@ -1,16 +1,12 @@
 import fetch from "node-fetch";
-import IcalExpander from "ical-expander";
-
-// Types for calendar data
-interface CalendarData {
-  [date: string]: {
-    [time: string]: string[];
-  };
-}
-
-interface CalendarSource {
-  url: string;
-}
+import IcalExpander, { IcalEvent, IcalOccurrence } from "ical-expander";
+import {
+  CalendarData,
+  CalendarItem,
+  CalendarSource,
+  isOccurrence,
+  toDate,
+} from "./cal.types";
 
 /**
  * Converts iCal URLs into a structured JSON object
@@ -18,7 +14,7 @@ interface CalendarSource {
  * @returns Promise<CalendarData> Organized calendar data by date and time
  */
 export async function convertCalendarsToJSON(
-  sources: (string | CalendarSource)[]
+  sources: (string | CalendarSource)[],
 ): Promise<CalendarData> {
   const calendarData: CalendarData = {};
 
@@ -40,17 +36,17 @@ export async function convertCalendarsToJSON(
 
       const expandedEvents = icalExpander.between(today, oneMonthFromNow);
 
-      expandedEvents.events.forEach((event) => {
+      expandedEvents.events.forEach((event: IcalEvent) => {
         addEventToCalendarData(calendarData, event, today);
       });
 
-      expandedEvents.occurrences.forEach((occurrence) => {
+      expandedEvents.occurrences.forEach((occurrence: IcalOccurrence) => {
         addEventToCalendarData(calendarData, occurrence, today);
       });
     } catch (error) {
       console.warn(
         `Failed to process calendar source ${sourceObj.url}:`,
-        error
+        error,
       );
     }
   }
@@ -62,20 +58,25 @@ async function fetchICalData(url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(
-      `Failed to fetch iCal data: ${response.status} ${response.statusText}`
+      `Failed to fetch iCal data: ${response.status} ${response.statusText}`,
     );
   }
   return response.text();
 }
 
-function addEventToCalendarData(calendarData: CalendarData, event: any, queryStartDate: Date): void {
-  const originalStartDate = event.startDate?.toJSDate() || new Date(event.startDate);
-  let endDate = event.endDate?.toJSDate() || new Date(event.endDate);
+function addEventToCalendarData(
+  calendarData: CalendarData,
+  event: CalendarItem,
+  queryStartDate: Date,
+): void {
+  const source = isOccurrence(event) ? event.item : event;
+  const originalStartDate = toDate(source.startDate);
+  let endDate = toDate(source.endDate);
 
   const isAllDay =
-    event.isAllDay ||
-    (event.item && event.item.isAllDay) ||
-    (event.startDate?.isDate && event.endDate?.isDate);
+    source.isAllDay ||
+    (isOccurrence(event) && event.item.isAllDay) ||
+    (source.startDate?.isDate && source.endDate?.isDate);
 
   // Adjust end date for all-day events (exclusive end date)
   if (isAllDay) {
@@ -83,11 +84,16 @@ function addEventToCalendarData(calendarData: CalendarData, event: any, querySta
     endDate.setDate(endDate.getDate() - 1);
   }
 
-  const title = event.summary || event.item?.summary || "Untitled Event";
+  const title =
+    source.summary ??
+    (isOccurrence(event) ? event.item.summary : undefined) ??
+    "Untitled Event";
 
   // Truncate the start date to the query start date if the event started before our query range
-  const effectiveStartDate = new Date(Math.max(originalStartDate.getTime(), queryStartDate.getTime()));
-  
+  const effectiveStartDate = new Date(
+    Math.max(originalStartDate.getTime(), queryStartDate.getTime()),
+  );
+
   const currentDate = new Date(effectiveStartDate);
 
   while (currentDate <= endDate) {
@@ -98,12 +104,13 @@ function addEventToCalendarData(calendarData: CalendarData, event: any, querySta
 
     // For multi-day events, use the time from the original start date only on the first day
     // of the original event. For truncated events (starting mid-way), treat as all-day
-    const isOriginalFirstDay = currentDate.getTime() === originalStartDate.getTime();
+    const isOriginalFirstDay =
+      currentDate.getTime() === originalStartDate.getTime();
     const timeKey = isAllDay
       ? "allday"
       : isOriginalFirstDay
-      ? originalStartDate.toTimeString().slice(0, 5)
-      : "allday";
+        ? originalStartDate.toTimeString().slice(0, 5)
+        : "allday";
 
     if (!calendarData[dateKey]) {
       calendarData[dateKey] = {};

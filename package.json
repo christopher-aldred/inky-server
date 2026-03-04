@@ -30,5 +30,6 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "vercel": "latest"
-  }
+  },
+  "types": "types"
 }
