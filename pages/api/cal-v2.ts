@@ -278,14 +278,14 @@ export default async function handler(
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 410;
+    const weatherStripY = scaledYOffset + 405;
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
     // Bottom border for the main grid above the strip
     ctx.beginPath();
     ctx.moveTo(0, scaledYOffset + 390);
-    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 410);
+    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 390);
     ctx.stroke();
 
     weatherForecast.forEach((forecast, index) => {
