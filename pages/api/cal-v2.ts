@@ -201,8 +201,9 @@ export default async function handler(
 
     // Draw background image on the top half using object-fit: cover behavior
     try {
+      const photoNumber = Math.floor(Math.random() * 16) + 1;
       const bgImage = await loadImage(
-        path.join(process.cwd(), "public", "bg.jpeg"),
+        path.join(process.cwd(), "public", "photos", `${photoNumber}.jpeg`),
       );
 
       const targetW = canvasWidth;
@@ -236,7 +237,7 @@ export default async function handler(
       ctx.restore();
     } catch (e) {
       // If the image is missing, fall back to white background without throwing
-      console.warn("bg.jpeg not found or failed to load", e);
+      console.warn("photo background not found or failed to load", e);
     }
 
     // Scale factors to make better use of the bottom half
@@ -270,7 +271,7 @@ export default async function handler(
 
     // ---- 4 COLUMN LAYOUT ----
     const totalColumns = 4;
-    const horizontalPadding = 20;
+    const horizontalPadding = 30;
     const usableWidth = canvasWidth / scaleX - horizontalPadding * 2;
     const columnWidth = usableWidth / totalColumns;
     const dividerOffset = -12; // shift vertical dividers slightly left
@@ -335,19 +336,19 @@ export default async function handler(
       const dividerX = horizontalPadding + i * columnWidth + dividerOffset;
       ctx.beginPath();
       ctx.moveTo(dividerX, scaledYOffset + 80);
-      ctx.lineTo(dividerX, scaledYOffset + 380);
+      ctx.lineTo(dividerX, scaledYOffset + 410);
       ctx.stroke();
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 395;
+    const weatherStripY = scaledYOffset + 430;
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
     // Bottom border for the main grid above the strip
     ctx.beginPath();
-    ctx.moveTo(0, scaledYOffset + 380);
-    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 380);
+    ctx.moveTo(0, scaledYOffset + 410);
+    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 410);
     ctx.stroke();
 
     weatherForecast.forEach((forecast, index) => {
