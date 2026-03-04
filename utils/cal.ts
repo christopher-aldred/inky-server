@@ -94,13 +94,16 @@ function addEventToCalendarData(
   queryStartDate: Date,
 ): void {
   const source = isOccurrence(event) ? event.item : event;
-  const originalStartDate = toDate(source.startDate);
-  let endDate = toDate(source.endDate);
+  const startDateRaw = isOccurrence(event) ? event.startDate : source.startDate;
+  const endDateRaw = isOccurrence(event) ? event.endDate : source.endDate;
+
+  const startDate = toDate(startDateRaw);
+  let endDate = toDate(endDateRaw);
 
   const isAllDay =
     source.isAllDay ||
     (isOccurrence(event) && event.item.isAllDay) ||
-    (source.startDate?.isDate && source.endDate?.isDate);
+    Boolean((startDateRaw as any)?.isDate && (endDateRaw as any)?.isDate);
 
   // Adjust end date for all-day events (exclusive end date)
   if (isAllDay) {
@@ -115,7 +118,7 @@ function addEventToCalendarData(
 
   // Truncate the start date to the query start date if the event started before our query range
   const effectiveStartDate = new Date(
-    Math.max(originalStartDate.getTime(), queryStartDate.getTime()),
+    Math.max(startDate.getTime(), queryStartDate.getTime()),
   );
 
   const currentDate = new Date(effectiveStartDate);
@@ -128,12 +131,11 @@ function addEventToCalendarData(
 
     // For multi-day events, use the time from the original start date only on the first day
     // of the original event. For truncated events (starting mid-way), treat as all-day
-    const isOriginalFirstDay =
-      currentDate.getTime() === originalStartDate.getTime();
+    const isOriginalFirstDay = currentDate.getTime() === startDate.getTime();
     const timeKey = isAllDay
       ? "allday"
       : isOriginalFirstDay
-        ? originalStartDate.toTimeString().slice(0, 5)
+        ? startDate.toTimeString().slice(0, 5)
         : "allday";
 
     if (!calendarData[dateKey]) {
