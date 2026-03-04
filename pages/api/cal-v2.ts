@@ -273,19 +273,19 @@ export default async function handler(
       const dividerX = horizontalPadding + i * columnWidth + dividerOffset;
       ctx.beginPath();
       ctx.moveTo(dividerX, scaledYOffset + 80);
-      ctx.lineTo(dividerX, scaledYOffset + 390);
+      ctx.lineTo(dividerX, scaledYOffset + 380);
       ctx.stroke();
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 405;
+    const weatherStripY = scaledYOffset + 400;
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
     // Bottom border for the main grid above the strip
     ctx.beginPath();
-    ctx.moveTo(0, scaledYOffset + 390);
-    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 390);
+    ctx.moveTo(0, scaledYOffset + 380);
+    ctx.lineTo(canvasWidth / scaleX, scaledYOffset + 380);
     ctx.stroke();
 
     weatherForecast.forEach((forecast, index) => {
