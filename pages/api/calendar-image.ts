@@ -296,11 +296,13 @@ export default async function handler(
     res.setHeader("Pragma", "no-cache");
     res.setHeader("Expires", "0");
     res.send(buffer);
-  } catch (error) {
-    console.error("Error:", error);
-    res.status(500).json({
-      error: "Failed to generate calendar image",
-      details: error.message,
-    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Error:", error);
+      res.status(500).json({
+        error: "Failed to generate calendar image",
+        details: error.message,
+      });
+    }
   }
 }
