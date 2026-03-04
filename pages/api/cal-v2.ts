@@ -208,18 +208,26 @@ export default async function handler(
 
     // ---- 4 COLUMN LAYOUT ----
     const totalColumns = 4;
-    const horizontalPadding = 30;
-    const usableWidth = canvasWidth / scaleX - horizontalPadding * 2;
+    const horizontalPadding = 20;
+    const columnGutter = 10; // extra spacing to avoid overlap/ellipsis clipping
+    const dividerPadding = 12; // gap between divider and next column on the right
+    const usableWidth =
+      canvasWidth / scaleX -
+      horizontalPadding * 2 -
+      columnGutter * (totalColumns - 1);
     const columnWidth = usableWidth / totalColumns;
-    const dividerOffset = -12; // shift vertical dividers slightly left
-    const maxContentY = scaledYOffset + 400;
+    const dividerOffset = -dividerPadding; // shift left to leave right-side gap
+    const weatherStripY = scaledYOffset + 395;
+    const lineHeight = 25;
+    const maxContentY = weatherStripY - lineHeight - 10; // ensure gap above weather strip
 
     let dayIndex = 0;
 
     for (const [date, events] of groupedEvents) {
       if (dayIndex >= totalColumns) break;
 
-      const xPosition = horizontalPadding + dayIndex * columnWidth;
+      const xPosition =
+        horizontalPadding + dayIndex * (columnWidth + columnGutter);
       let yPosition = scaledYOffset + 100;
 
       ctx.fillStyle = "#000";
@@ -235,7 +243,7 @@ export default async function handler(
       yPosition += 40;
 
       for (const event of events) {
-        if (yPosition > maxContentY) break;
+        if (yPosition + lineHeight > maxContentY) break;
 
         if (!event.isAllDay) {
           ctx.font = "18px Mania";
@@ -261,7 +269,7 @@ export default async function handler(
         const titleX = event.isAllDay ? xPosition : xPosition + 50;
 
         ctx.fillText(title, titleX, yPosition);
-        yPosition += 25;
+        yPosition += lineHeight;
       }
 
       dayIndex++;
@@ -270,15 +278,15 @@ export default async function handler(
     // Vertical dividers
     ctx.strokeStyle = "#000";
     for (let i = 1; i < totalColumns; i++) {
-      const dividerX = horizontalPadding + i * columnWidth + dividerOffset;
+      const dividerX =
+        horizontalPadding + i * (columnWidth + columnGutter) + dividerOffset;
       ctx.beginPath();
       ctx.moveTo(dividerX, scaledYOffset + 80);
-      ctx.lineTo(dividerX, scaledYOffset + 380);
+      ctx.lineTo(dividerX, maxContentY - 5);
       ctx.stroke();
     }
 
     // Weather forecast strip at the bottom (matches calendar-image.ts style)
-    const weatherStripY = scaledYOffset + 395;
     const weatherItemWidth = 160;
     const weatherIconSize = 40;
 
