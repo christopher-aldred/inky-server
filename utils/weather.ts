@@ -164,7 +164,13 @@ export async function getWeatherForecast(
 			latitude,
 			longitude,
 			timezone: timezone || "auto",
-			daily: ["temperature_2m_max", "temperature_2m_min", "weather_code"],
+			daily: [
+				"temperature_2m_max",
+				"temperature_2m_min",
+				"weather_code",
+				"sunrise",
+				"sunset",
+			],
 			forecast_days: 5,
 		},
 	);
@@ -179,6 +185,21 @@ export async function getWeatherForecast(
 	const tempMax = daily.variables(0)?.valuesArray?.() ?? [];
 	const tempMin = daily.variables(1)?.valuesArray?.() ?? [];
 	const weatherCodes = daily.variables(2)?.valuesArray?.() ?? [];
+
+	// Sunrise and sunset are Int64 values, need special handling
+	const sunriseVar = daily.variables(3);
+	const sunsetVar = daily.variables(4);
+	const sunriseArray = sunriseVar
+		? [...Array(sunriseVar.valuesInt64Length())].map((_, i) =>
+				Number(sunriseVar.valuesInt64(i)),
+			)
+		: [];
+	const sunsetArray = sunsetVar
+		? [...Array(sunsetVar.valuesInt64Length())].map((_, i) =>
+				Number(sunsetVar.valuesInt64(i)),
+			)
+		: [];
+
 	const startTime = Number(daily.time() ?? 0);
 	const interval = daily.interval?.() ?? 86400;
 	const length = Math.min(
@@ -191,6 +212,8 @@ export async function getWeatherForecast(
 		const tMax = tempMax?.[index];
 		const tMin = tempMin?.[index];
 		const weatherCode = weatherCodes?.[index] as number | undefined;
+		const sunrise = sunriseArray?.[index];
+		const sunset = sunsetArray?.[index];
 
 		const avgTemp =
 			typeof tMax === "number" && typeof tMin === "number"
@@ -203,19 +226,23 @@ export async function getWeatherForecast(
 			date: new Date(timestamp * 1000),
 			temp: Math.round(avgTemp ?? 0),
 			weather: mapWeatherCodeToMain(weatherCode),
+			sunrise: sunrise !== undefined ? Number(sunrise) : undefined,
+			sunset: sunset !== undefined ? Number(sunset) : undefined,
 		};
 	});
 }
 
 function isNighttime(
 	timestamp: number,
-	sunrise: number,
-	sunset: number,
+	sunrise?: number,
+	sunset?: number,
 ): boolean {
-	// Simple hour-based check: 8pm (20:00) to 6am (06:00) is night
-	const date = new Date(timestamp * 1000);
-	const hour = date.getHours();
-	return hour >= 20 || hour < 6;
+	// Only use API sunrise/sunset values - no fallback
+	if (sunrise && sunset) {
+		return timestamp < sunrise || timestamp > sunset;
+	}
+	// If sunrise/sunset not available, default to daytime (don't show moon icon)
+	return false;
 }
 
 export function getWeatherIcon(
@@ -229,17 +256,13 @@ export function getWeatherIcon(
 ): string {
 	const main = weatherMain?.toLowerCase?.() ?? "clear";
 
-	// Show moon icon for clear weather at night
-	const isNight = options?.timestamp
-		? isNighttime(options.timestamp, options.sunrise ?? 0, options.sunset ?? 0)
-		: false;
+	// Show moon icon for clear weather at night (only if we have valid sunrise/sunset from API)
+	const isNight =
+		options?.timestamp && options?.sunrise && options?.sunset
+			? isNighttime(options.timestamp, options.sunrise, options.sunset)
+			: false;
 
-	if (
-		options?.includeNight &&
-		options.timestamp &&
-		main === "clear" &&
-		isNight
-	) {
+	if (options?.includeNight && main === "clear" && isNight) {
 		return "moon";
 	}
 
@@ -311,8 +334,19 @@ export async function getWeatherDetails(
 	const daily = response.daily();
 	const hourly = response.hourly();
 
-	const dailySunrise = daily?.variables(0)?.valuesArray?.() ?? [];
-	const dailySunset = daily?.variables(1)?.valuesArray?.() ?? [];
+	// Sunrise and sunset are Int64 values, need special handling
+	const sunriseVar = daily?.variables(0);
+	const sunsetVar = daily?.variables(1);
+	const dailySunrise = sunriseVar
+		? [...Array(sunriseVar.valuesInt64Length())].map((_, i) =>
+				Number(sunriseVar.valuesInt64(i)),
+			)
+		: [];
+	const dailySunset = sunsetVar
+		? [...Array(sunsetVar.valuesInt64Length())].map((_, i) =>
+				Number(sunsetVar.valuesInt64(i)),
+			)
+		: [];
 	const dailyUvMax = daily?.variables(2)?.valuesArray?.() ?? [];
 	// const dailyWeatherCodes = daily?.variables(3)?.valuesArray?.() ?? [];
 
@@ -353,8 +387,9 @@ export async function getWeatherDetails(
 
 	const next24Hours: HourlyEntry[] = hourlyTimes.slice(0, 48).map((t, i) => {
 		const date = new Date((t + utcOffsetSeconds) * 1000);
-		const dayIdx = daily?.time()
-			? Math.floor((t - Number(daily.time())) / 86400)
+		const dailyStartTime = Number(daily?.time() ?? 0);
+		const dayIdx = dailyStartTime
+			? Math.floor((t - dailyStartTime) / 86400)
 			: 0;
 		const sunrise = dailySunrise?.[dayIdx];
 		const sunset = dailySunset?.[dayIdx];

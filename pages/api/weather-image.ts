@@ -4,6 +4,7 @@ import {
 	type HourlyEntry,
 	getWeatherIcon,
 	getWeatherDetails,
+	getWeatherForecast,
 	loadWeatherIcons,
 	NIGHT_ICON_TYPES,
 	weatherIcons,
@@ -28,8 +29,20 @@ export default async function handler(
 		// Load weather icons before proceeding (include moon for night)
 		await loadWeatherIcons(NIGHT_ICON_TYPES);
 
+		// Get current weather and hourly forecast
 		const { current, next24Hours, uvIndex, precipitation } =
 			await getWeatherDetails(location);
+
+		// Get daily forecast with sunrise/sunset times
+		const dailyForecast = await getWeatherForecast(location);
+		console.log(
+			"Daily forecast data:",
+			dailyForecast.map((d) => ({
+				date: d.date,
+				sunrise: d.sunrise,
+				sunset: d.sunset,
+			})),
+		);
 
 		const canvas = createCanvas(800, 480);
 		const ctx = canvas.getContext("2d");
@@ -66,12 +79,17 @@ export default async function handler(
 		const currentTemp = `${Math.round(current.main.temp ?? 0)}°C`;
 
 		const iconSize = 130;
+		// Get today's sunrise/sunset from daily forecast
+		const todaySunrise = dailyForecast[0]?.sunrise;
+		const todaySunset = dailyForecast[0]?.sunset;
+		console.log("Today's sunrise:", todaySunrise, "sunset:", todaySunset);
+
 		const weatherIcon = getWeatherIcon(current.weather[0].main, {
 			timestamp: current.time
 				? Math.floor(current.time)
 				: Math.floor(Date.now() / 1000),
-			sunrise: current.sys.sunrise,
-			sunset: current.sys.sunset,
+			sunrise: todaySunrise,
+			sunset: todaySunset,
 			includeNight: true,
 		});
 
@@ -244,10 +262,20 @@ export default async function handler(
 			ctx.fillText(tempText, x - tempWidth / 2, y - 40);
 
 			// Weather icons for forecast points
+			// Find the matching day's sunrise/sunset from daily forecast
+			const matchingDay = dailyForecast.find((day) => {
+				const dayDate = new Date(day.date);
+				return (
+					dayDate.getFullYear() === forecastDate.getFullYear() &&
+					dayDate.getMonth() === forecastDate.getMonth() &&
+					dayDate.getDate() === forecastDate.getDate()
+				);
+			});
+
 			const weatherIcon = getWeatherIcon(data.weather[0].main, {
 				timestamp: data.dt,
-				sunrise: data.sun?.sunrise ?? current.sys.sunrise,
-				sunset: data.sun?.sunset ?? current.sys.sunset,
+				sunrise: matchingDay?.sunrise ?? todaySunrise,
+				sunset: matchingDay?.sunset ?? todaySunset,
 				includeNight: true,
 			});
 			const smallIconSize = 40;

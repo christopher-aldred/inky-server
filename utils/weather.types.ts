@@ -42,6 +42,8 @@ export interface WeatherForecast {
 	date: Date;
 	temp: number;
 	weather: string;
+	sunrise?: number;
+	sunset?: number;
 }
 
 /**
