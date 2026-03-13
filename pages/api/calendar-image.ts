@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from "next";
+import type { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas, registerFont, loadImage } from "canvas";
 import path from "path";
 import { convertCalendarsToJSON } from "../../utils/cal";
