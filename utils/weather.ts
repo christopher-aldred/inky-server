@@ -1,6 +1,7 @@
 import path from "path";
 import axios from "axios";
 import { loadImage } from "canvas";
+import { fetchWeatherApi } from "openmeteo";
 
 export const BASE_ICON_TYPES = [
 	"clear",
@@ -26,6 +27,34 @@ async function loadIcon(type: string): Promise<void> {
 export async function loadWeatherIcons(iconTypes = BASE_ICON_TYPES) {
 	await Promise.all(iconTypes.map((type) => loadIcon(type)));
 	return weatherIcons;
+}
+
+export interface HourlyEntry {
+	dt: number;
+	dt_txt: string;
+	main: { temp?: number; humidity?: number };
+	weather: Array<{ main: string; description: string }>;
+	wind: { speed?: number };
+	rain?: { "3h"?: number };
+	snow?: { "3h"?: number };
+	sun?: { sunrise?: number; sunset?: number };
+}
+
+export interface CurrentWeather {
+	main: { temp?: number; humidity?: number; feels_like?: number };
+	wind: { speed?: number };
+	weather: Array<{ main: string; description: string }>;
+	sys: { sunrise?: number; sunset?: number };
+	time?: number;
+}
+
+export interface DetailedWeather {
+	current: CurrentWeather;
+	next24Hours: HourlyEntry[];
+	uvIndex: number;
+	precipitation: number;
+	timezone?: string;
+	utcOffsetSeconds: number;
 }
 
 export interface WeatherForecast {
@@ -155,35 +184,49 @@ export async function getWeatherForecast(
 ): Promise<WeatherForecast[]> {
 	const { latitude, longitude, timezone } = await geocodeLocation(location);
 
-	const response = await axios.get("https://api.open-meteo.com/v1/forecast", {
-		params: {
+	const responses = await fetchWeatherApi(
+		"https://api.open-meteo.com/v1/forecast",
+		{
 			latitude,
 			longitude,
-			daily: "temperature_2m_max,temperature_2m_min,weather_code",
 			timezone: timezone || "auto",
+			daily: ["temperature_2m_max", "temperature_2m_min", "weather_code"],
 			forecast_days: 5,
 		},
-	});
+	);
 
-	const daily = response.data?.daily;
+	const response = responses[0];
+	if (!response) return [];
 
+	const daily = response.daily();
 	if (!daily) return [];
 
-	return daily.time.slice(0, 5).map((time: string, index: number) => {
-		const tempMax = daily.temperature_2m_max?.[index];
-		const tempMin = daily.temperature_2m_min?.[index];
-		const weatherCode = (daily.weather_code?.[index] ??
-			daily.weathercode?.[index]) as number | undefined;
+	const utcOffsetSeconds = response.utcOffsetSeconds();
+	const tempMax = daily.variables(0)?.valuesArray?.() ?? [];
+	const tempMin = daily.variables(1)?.valuesArray?.() ?? [];
+	const weatherCodes = daily.variables(2)?.valuesArray?.() ?? [];
+	const startTime = Number(daily.time() ?? 0);
+	const interval = daily.interval?.() ?? 86400;
+	const length = Math.min(
+		5,
+		Math.max(tempMax.length, tempMin.length, weatherCodes.length),
+	);
+
+	return Array.from({ length }).map((_, index) => {
+		const timestamp = startTime + index * interval + utcOffsetSeconds;
+		const tMax = tempMax?.[index];
+		const tMin = tempMin?.[index];
+		const weatherCode = weatherCodes?.[index] as number | undefined;
 
 		const avgTemp =
-			typeof tempMax === "number" && typeof tempMin === "number"
-				? (tempMax + tempMin) / 2
-				: typeof tempMax === "number"
-					? tempMax
-					: tempMin;
+			typeof tMax === "number" && typeof tMin === "number"
+				? (tMax + tMin) / 2
+				: typeof tMax === "number"
+					? tMax
+					: tMin;
 
 		return {
-			date: new Date(time),
+			date: new Date(timestamp * 1000),
 			temp: Math.round(avgTemp ?? 0),
 			weather: mapWeatherCodeToMain(weatherCode),
 		};
@@ -249,4 +292,141 @@ export function getWeatherIcon(
 		default:
 			return "clear";
 	}
+}
+
+export async function getWeatherDetails(
+	location: string = "Sheffield,UK",
+): Promise<DetailedWeather> {
+	const { latitude, longitude, timezone } = await geocodeLocation(location);
+
+	const responses = await fetchWeatherApi(
+		"https://api.open-meteo.com/v1/forecast",
+		{
+			latitude,
+			longitude,
+			timezone: timezone || "auto",
+			current: [
+				"temperature_2m",
+				"relative_humidity_2m",
+				"apparent_temperature",
+				"is_day",
+				"precipitation",
+				"rain",
+				"snowfall",
+				"weather_code",
+				"wind_speed_10m",
+				"uv_index",
+			],
+			hourly: [
+				"temperature_2m",
+				"precipitation",
+				"rain",
+				"snowfall",
+				"weather_code",
+				"uv_index",
+				"wind_speed_10m",
+				"relative_humidity_2m",
+			],
+			daily: ["sunrise", "sunset", "uv_index_max", "weather_code"],
+			forecast_days: 5,
+		},
+	);
+
+	const response = responses[0];
+	if (!response) {
+		throw new Error("No weather response received from Open-Meteo");
+	}
+
+	const utcOffsetSeconds = response.utcOffsetSeconds();
+	const current = response.current();
+	const daily = response.daily();
+	const hourly = response.hourly();
+
+	const dailySunrise = daily?.variables(0)?.valuesArray?.() ?? [];
+	const dailySunset = daily?.variables(1)?.valuesArray?.() ?? [];
+	const dailyUvMax = daily?.variables(2)?.valuesArray?.() ?? [];
+	// const dailyWeatherCodes = daily?.variables(3)?.valuesArray?.() ?? [];
+
+	const weatherCodeCurrent = Number(current?.variables(7)?.value() ?? 0);
+
+	const currentWeather: CurrentWeather = {
+		main: {
+			temp: Number(current?.variables(0)?.value() ?? 0),
+			humidity: Number(current?.variables(1)?.value() ?? 0),
+			feels_like: Number(current?.variables(2)?.value() ?? 0),
+		},
+		wind: {
+			speed: Number(current?.variables(8)?.value() ?? 0),
+		},
+		weather: [
+			{
+				main: mapWeatherCodeToMain(weatherCodeCurrent),
+				description: mapWeatherCodeToDescription(weatherCodeCurrent),
+			},
+		],
+		sys: {
+			sunrise:
+				dailySunrise?.[0] !== undefined ? Number(dailySunrise[0]) : undefined,
+			sunset:
+				dailySunset?.[0] !== undefined ? Number(dailySunset[0]) : undefined,
+		},
+		time: current?.time() !== undefined ? Number(current.time()) : undefined,
+	};
+
+	const hourlyTimes: number[] = (() => {
+		if (!hourly) return [];
+		const start = Number(hourly.time());
+		const end = Number(hourly.timeEnd());
+		const interval = hourly.interval();
+		const len = (end - start) / interval;
+		return Array.from({ length: len }, (_, i) => start + i * interval);
+	})();
+
+	const next24Hours: HourlyEntry[] = hourlyTimes.slice(0, 24).map((t, i) => {
+		const date = new Date((t + utcOffsetSeconds) * 1000);
+		const dayIdx = daily?.time()
+			? Math.floor((t - Number(daily.time())) / 86400)
+			: 0;
+		const sunrise = dailySunrise?.[dayIdx];
+		const sunset = dailySunset?.[dayIdx];
+		const weatherCode = Number(hourly?.variables(4)?.valuesArray()?.[i] ?? 0);
+
+		return {
+			dt: Number(t),
+			dt_txt: date.toISOString(),
+			main: {
+				temp: Number(hourly?.variables(0)?.valuesArray()?.[i] ?? 0),
+				humidity: Number(hourly?.variables(7)?.valuesArray()?.[i] ?? 0),
+			},
+			weather: [
+				{
+					main: mapWeatherCodeToMain(weatherCode),
+					description: mapWeatherCodeToDescription(weatherCode),
+				},
+			],
+			wind: { speed: Number(hourly?.variables(6)?.valuesArray()?.[i] ?? 0) },
+			rain: { "3h": Number(hourly?.variables(2)?.valuesArray()?.[i] ?? 0) },
+			snow: { "3h": Number(hourly?.variables(3)?.valuesArray()?.[i] ?? 0) },
+			sun: {
+				sunrise: sunrise !== undefined ? Number(sunrise) : undefined,
+				sunset: sunset !== undefined ? Number(sunset) : undefined,
+			},
+		};
+	});
+
+	const uvIndex =
+		dailyUvMax?.[0] ?? hourly?.variables(5)?.valuesArray?.()?.[0] ?? 0;
+
+	const precipitation = next24Hours.reduce((total, data) => {
+		return total + (data.rain?.["3h"] || 0) + (data.snow?.["3h"] || 0);
+	}, 0);
+
+	return {
+		current: currentWeather,
+		next24Hours,
+		uvIndex: Number(uvIndex ?? 0),
+		precipitation,
+		timezone,
+		utcOffsetSeconds,
+	};
 }

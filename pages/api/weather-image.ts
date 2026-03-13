@@ -1,40 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas, registerFont } from "canvas";
 import path from "node:path";
-import { fetchWeatherApi } from "openmeteo";
 import {
-	geocodeLocation,
+	type HourlyEntry,
 	getWeatherIcon,
+	getWeatherDetails,
 	loadWeatherIcons,
 	NIGHT_ICON_TYPES,
 	weatherIcons,
-	mapWeatherCodeToDescription,
-	mapWeatherCodeToMain,
 } from "../../utils/weather";
 
 // Register Mania font
 const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
 registerFont(fontPath, { family: "Mania" });
 
-type HourlyEntry = {
-	dt: number;
-	dt_txt: string;
-	main: { temp?: number; humidity?: number };
-	weather: Array<{ main: string; description: string }>;
-	wind: { speed?: number };
-	rain?: { "3h"?: number };
-	snow?: { "3h"?: number };
-	sun?: { sunrise?: number; sunset?: number };
-};
-
 function capitalize(s: string) {
 	return String(s[0]).toUpperCase() + String(s).slice(1);
-}
-
-function toUnixSeconds(input?: string | number | Date): number {
-	if (!input) return Math.floor(Date.now() / 1000);
-	const date = typeof input === "string" ? new Date(input) : new Date(input);
-	return Math.floor(date.getTime() / 1000);
 }
 
 function getCurvePoints(points: Array<[number, number]>, tension = 0.3) {
@@ -87,129 +68,8 @@ export default async function handler(
 		// Load weather icons before proceeding (include moon for night)
 		await loadWeatherIcons(NIGHT_ICON_TYPES);
 
-		const { latitude, longitude, timezone } = await geocodeLocation(location);
-
-		const url = "https://api.open-meteo.com/v1/forecast";
-		const params = {
-			latitude,
-			longitude,
-			timezone: timezone || "auto",
-			current: [
-				"temperature_2m",
-				"relative_humidity_2m",
-				"apparent_temperature",
-				"is_day",
-				"precipitation",
-				"rain",
-				"snowfall",
-				"weather_code",
-				"wind_speed_10m",
-				"uv_index",
-			],
-			hourly: [
-				"temperature_2m",
-				"precipitation",
-				"rain",
-				"snowfall",
-				"weather_code",
-				"uv_index",
-				"wind_speed_10m",
-				"relative_humidity_2m",
-			],
-			daily: ["sunrise", "sunset", "uv_index_max", "weather_code"],
-			forecast_days: 5,
-		};
-
-		const responses = await fetchWeatherApi(url, params);
-		const response = responses[0];
-
-		if (!response) {
-			throw new Error("No weather response received from Open-Meteo");
-		}
-
-		const utcOffsetSeconds = response.utcOffsetSeconds();
-
-		const current = response.current();
-		const daily = response.daily();
-		const hourly = response.hourly();
-
-		const dailyWeatherCodes = daily?.variables(3)?.valuesArray?.() ?? [];
-		const dailySunrise = daily?.variables(0)?.valuesArray?.() ?? [];
-		const dailySunset = daily?.variables(1)?.valuesArray?.() ?? [];
-		const dailyUvMax = daily?.variables(2)?.valuesArray?.() ?? [];
-
-		const weatherCodeCurrent = Number(current?.variables(7)?.value() ?? 0);
-		const currentWeather = {
-			main: {
-				temp: Number(current?.variables(0)?.value() ?? 0),
-				humidity: Number(current?.variables(1)?.value() ?? 0),
-				feels_like: Number(current?.variables(2)?.value() ?? 0),
-			},
-			wind: {
-				speed: Number(current?.variables(8)?.value() ?? 0),
-			},
-			weather: [
-				{
-					main: mapWeatherCodeToMain(weatherCodeCurrent),
-					description: mapWeatherCodeToDescription(weatherCodeCurrent),
-				},
-			],
-			sys: {
-				sunrise:
-					dailySunrise?.[0] !== undefined ? Number(dailySunrise[0]) : undefined,
-				sunset:
-					dailySunset?.[0] !== undefined ? Number(dailySunset[0]) : undefined,
-			},
-			time: current?.time() !== undefined ? Number(current.time()) : undefined,
-		};
-
-		const hourlyTimes: number[] = (() => {
-			if (!hourly) return [];
-			const start = Number(hourly.time());
-			const end = Number(hourly.timeEnd());
-			const interval = hourly.interval();
-			const len = (end - start) / interval;
-			return Array.from({ length: len }, (_, i) => start + i * interval);
-		})();
-
-		const next24Hours: HourlyEntry[] = hourlyTimes.slice(0, 24).map((t, i) => {
-			const date = new Date((t + utcOffsetSeconds) * 1000);
-			const dayIdx = daily?.time()
-				? Math.floor((t - Number(daily.time())) / 86400)
-				: 0;
-			const sunrise = dailySunrise?.[dayIdx];
-			const sunset = dailySunset?.[dayIdx];
-			const weatherCode = Number(hourly?.variables(4)?.valuesArray()?.[i] ?? 0);
-			return {
-				dt: Number(t),
-				dt_txt: date.toISOString(),
-				main: {
-					temp: Number(hourly?.variables(0)?.valuesArray()?.[i] ?? 0),
-					humidity: Number(hourly?.variables(7)?.valuesArray()?.[i] ?? 0),
-				},
-				weather: [
-					{
-						main: mapWeatherCodeToMain(weatherCode),
-						description: mapWeatherCodeToDescription(weatherCode),
-					},
-				],
-				wind: { speed: Number(hourly?.variables(6)?.valuesArray()?.[i] ?? 0) },
-				rain: { "3h": Number(hourly?.variables(2)?.valuesArray()?.[i] ?? 0) },
-				snow: { "3h": Number(hourly?.variables(3)?.valuesArray()?.[i] ?? 0) },
-				sun: {
-					sunrise: sunrise !== undefined ? Number(sunrise) : undefined,
-					sunset: sunset !== undefined ? Number(sunset) : undefined,
-				},
-			};
-		});
-
-		const uvIndex =
-			dailyUvMax?.[0] ?? hourly?.variables(5)?.valuesArray?.()?.[0] ?? 0;
-
-		// Calculate total precipitation over the next 24 hours
-		const precipitation = next24Hours.reduce((total, data) => {
-			return total + (data.rain?.["3h"] || 0) + (data.snow?.["3h"] || 0);
-		}, 0);
+		const { current, next24Hours, uvIndex, precipitation } =
+			await getWeatherDetails(location);
 
 		const canvas = createCanvas(800, 480);
 		const ctx = canvas.getContext("2d");
@@ -243,15 +103,15 @@ export default async function handler(
 
 		// Current weather details
 		ctx.font = "42px Mania";
-		const currentTemp = `${Math.round(currentWeather.main.temp ?? 0)}°C`;
+		const currentTemp = `${Math.round(current.main.temp ?? 0)}°C`;
 
 		const iconSize = 130;
-		const weatherIcon = getWeatherIcon(currentWeather.weather[0].main, {
-			timestamp: currentWeather.time
-				? Math.floor(currentWeather.time)
+		const weatherIcon = getWeatherIcon(current.weather[0].main, {
+			timestamp: current.time
+				? Math.floor(current.time)
 				: Math.floor(Date.now() / 1000),
-			sunrise: currentWeather.sys.sunrise,
-			sunset: currentWeather.sys.sunset,
+			sunrise: current.sys.sunrise,
+			sunset: current.sys.sunset,
 			includeNight: true,
 		});
 
@@ -266,7 +126,7 @@ export default async function handler(
 		ctx.drawImage(weatherIcons[weatherIcon], iconX, 60, iconSize, iconSize);
 
 		ctx.font = "32px Mania";
-		const windSpeedKmh = Math.round((currentWeather.wind.speed ?? 0) * 3.6);
+		const windSpeedKmh = Math.round((current.wind.speed ?? 0) * 3.6);
 
 		// Wind Speed
 		ctx.fillStyle = "#666666";
@@ -278,17 +138,13 @@ export default async function handler(
 		ctx.fillStyle = "#666666";
 		ctx.fillText("Humidity: ", 20, 108);
 		ctx.fillStyle = "#000000";
-		ctx.fillText(`${Math.round(currentWeather.main.humidity ?? 0)}%`, 150, 108);
+		ctx.fillText(`${Math.round(current.main.humidity ?? 0)}%`, 150, 108);
 
 		// Feels Like
 		ctx.fillStyle = "#666666";
 		ctx.fillText("Feels Like: ", 20, 144);
 		ctx.fillStyle = "#000000";
-		ctx.fillText(
-			`${Math.round(currentWeather.main.feels_like ?? 0)}°C`,
-			175,
-			144,
-		);
+		ctx.fillText(`${Math.round(current.main.feels_like ?? 0)}°C`, 175, 144);
 
 		// Rain
 		ctx.fillStyle = "#666666";
@@ -318,7 +174,7 @@ export default async function handler(
 		// Weather Description
 		ctx.fillStyle = "#000000";
 		ctx.fillText(
-			capitalize(currentWeather.weather[0].description),
+			capitalize(current.weather[0].description),
 			rainTextStart,
 			144,
 		);
@@ -329,8 +185,13 @@ export default async function handler(
 		const graphHeight = 200;
 		const graphBottom = graphHeight + graphMargin.top;
 
+		// Filter to 2-hour intervals (8 data points for 16 hours)
+		const filteredHours = next24Hours
+			.filter((_, index) => index % 2 === 0)
+			.slice(0, 8);
+
 		// Find temperature range
-		const temps = next24Hours.map((d) => d.main.temp ?? 0);
+		const temps = filteredHours.map((d) => d.main.temp ?? 0);
 		const minTemp = Math.floor(Math.min(...temps));
 		const maxTemp = Math.ceil(Math.max(...temps));
 		const tempRange = Math.max(1, maxTemp - minTemp);
@@ -347,7 +208,7 @@ export default async function handler(
 		const bottomPaddingPercentage = 0.3;
 
 		// Collect points for the curve
-		const points: Array<[number, number]> = next24Hours.map(
+		const points: Array<[number, number]> = filteredHours.map(
 			(data: HourlyEntry, index: number) => {
 				const x = graphMargin.left + index * (graphWidth / 7);
 				const tempForPoint = data.main.temp ?? minTemp;
@@ -380,7 +241,7 @@ export default async function handler(
 		}
 
 		// Draw labels and icons for forecast points
-		next24Hours.forEach((data: HourlyEntry, index: number) => {
+		filteredHours.forEach((data, index) => {
 			const x = graphMargin.left + index * (graphWidth / 7);
 
 			const curvePoint = curvePoints.find(
@@ -388,13 +249,12 @@ export default async function handler(
 			);
 			const y = curvePoint ? curvePoint[1] : points[index][1];
 
-			// Time labels
+			// Time labels - start from current hour with 2-hour increments
 			ctx.fillStyle = "#000000";
 			ctx.font = "24px Mania";
-			const time = new Date(data.dt * 1000).toLocaleTimeString("en-UK", {
-				timeZone: "Europe/London",
-				hour: "2-digit",
-			});
+			const currentHour = now.getHours();
+			const displayHour = (currentHour + index * 2) % 24;
+			const time = `${displayHour.toString().padStart(2, "0")}`;
 			ctx.save();
 			ctx.translate(x - 10, graphBottom + 10);
 			ctx.fillText(time, 0, 0);
@@ -406,8 +266,8 @@ export default async function handler(
 			// Weather icons for forecast points
 			const weatherIcon = getWeatherIcon(data.weather[0].main, {
 				timestamp: data.dt,
-				sunrise: data.sun?.sunrise ?? currentWeather.sys.sunrise,
-				sunset: data.sun?.sunset ?? currentWeather.sys.sunset,
+				sunrise: data.sun?.sunrise ?? current.sys.sunrise,
+				sunset: data.sun?.sunset ?? current.sys.sunset,
 				includeNight: true,
 			});
 			const smallIconSize = 40;
