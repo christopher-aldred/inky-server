@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createCanvas, registerFont } from "canvas";
-import path from "node:path";
+import { createCanvas } from "canvas";
 import {
 	type HourlyEntry,
 	getWeatherIcon,
@@ -9,54 +8,15 @@ import {
 	NIGHT_ICON_TYPES,
 	weatherIcons,
 } from "../../utils/weather";
+import { registerManiaFont } from "../../utils/canvas";
+import {
+	capitalize,
+	getCurvePoints,
+	getTemperatureColor,
+} from "../../utils/chart";
 
 // Register Mania font
-const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
-registerFont(fontPath, { family: "Mania" });
-
-function capitalize(s: string) {
-	return String(s[0]).toUpperCase() + String(s).slice(1);
-}
-
-function getCurvePoints(points: Array<[number, number]>, tension = 0.3) {
-	const res: Array<[number, number]> = [];
-
-	for (let i = 0; i < points.length - 1; i++) {
-		const p0 = i > 0 ? points[i - 1] : points[i];
-		const p1 = points[i];
-		const p2 = points[i + 1];
-		const p3 = i < points.length - 2 ? points[i + 2] : p2;
-
-		for (let t = 0; t <= 1; t += 0.01) {
-			const t2 = t * t;
-			const t3 = t2 * t;
-
-			const x =
-				0.5 *
-				(2 * p1[0] +
-					(-p0[0] + p2[0]) * t +
-					(2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
-					(-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
-
-			const y =
-				0.5 *
-				(2 * p1[1] +
-					(-p0[1] + p2[1]) * t +
-					(2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
-					(-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
-
-			res.push([x, y]);
-		}
-	}
-	return res;
-}
-
-function getTemperatureColor(temp: number): string {
-	if (temp <= 0) return "#0096FF";
-	if (temp <= 10) return "#AAFF00";
-	if (temp <= 20) return "#FFA500";
-	return "#e74c3c";
-}
+registerManiaFont();
 
 export default async function handler(
 	req: NextApiRequest,
@@ -185,10 +145,25 @@ export default async function handler(
 		const graphHeight = 200;
 		const graphBottom = graphHeight + graphMargin.top;
 
-		// Filter to 2-hour intervals (8 data points for 16 hours)
-		const filteredHours = next24Hours
-			.filter((_, index) => index % 2 === 0)
-			.slice(0, 8);
+		// Filter to show data starting from current hour
+		// API returns data starting from midnight, so we need to find current hour
+		const currentHour = now.getHours();
+
+		// Find the index in next24Hours that corresponds to the current hour
+		const currentHourIndex = next24Hours.findIndex((entry) => {
+			const entryDate = new Date(entry.dt * 1000);
+			return entryDate.getHours() === currentHour;
+		});
+
+		// If we can't find current hour, start from beginning
+		const startIndex = currentHourIndex >= 0 ? currentHourIndex : 0;
+
+		// Get 16 hours of data from current hour (every 2 hours = 8 points)
+		// We need indices: 0, 2, 4, 6, 8, 10, 12, 14 from the sliced array
+		const dataFromCurrentHour = next24Hours.slice(startIndex, startIndex + 16);
+		const filteredHours = dataFromCurrentHour.filter(
+			(_, index) => index % 2 === 0,
+		);
 
 		// Find temperature range
 		const temps = filteredHours.map((d) => d.main.temp ?? 0);
@@ -210,7 +185,8 @@ export default async function handler(
 		// Collect points for the curve
 		const points: Array<[number, number]> = filteredHours.map(
 			(data: HourlyEntry, index: number) => {
-				const x = graphMargin.left + index * (graphWidth / 7);
+				const x =
+					graphMargin.left + index * (graphWidth / (filteredHours.length - 1));
 				const tempForPoint = data.main.temp ?? minTemp;
 				const y =
 					graphMargin.top +
@@ -242,26 +218,30 @@ export default async function handler(
 
 		// Draw labels and icons for forecast points
 		filteredHours.forEach((data, index) => {
-			const x = graphMargin.left + index * (graphWidth / 7);
+			const x =
+				graphMargin.left + index * (graphWidth / (filteredHours.length - 1));
 
 			const curvePoint = curvePoints.find(
 				(point) => Math.abs(point[0] - x) < 1,
 			);
 			const y = curvePoint ? curvePoint[1] : points[index][1];
 
-			// Time labels - start from current hour with 2-hour increments
+			// Time labels - use actual timestamp from forecast data
 			ctx.fillStyle = "#000000";
 			ctx.font = "24px Mania";
-			const currentHour = now.getHours();
-			const displayHour = (currentHour + index * 2) % 24;
+			const forecastDate = new Date(data.dt * 1000);
+			const displayHour = forecastDate.getHours();
 			const time = `${displayHour.toString().padStart(2, "0")}`;
+			const timeWidth = ctx.measureText(time).width;
 			ctx.save();
-			ctx.translate(x - 10, graphBottom + 10);
+			ctx.translate(x - timeWidth / 2, graphBottom + 10);
 			ctx.fillText(time, 0, 0);
 			ctx.restore();
 
 			// Temperature labels
-			ctx.fillText(`${Math.round(data.main.temp ?? 0)}°C`, x - 15, y - 40);
+			const tempText = `${Math.round(data.main.temp ?? 0)}°C`;
+			const tempWidth = ctx.measureText(tempText).width;
+			ctx.fillText(tempText, x - tempWidth / 2, y - 40);
 
 			// Weather icons for forecast points
 			const weatherIcon = getWeatherIcon(data.weather[0].main, {

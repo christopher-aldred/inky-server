@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createCanvas, registerFont, loadImage } from "canvas";
+import { createCanvas, loadImage } from "canvas";
 import path from "path";
 import { convertCalendarsToJSON } from "../../utils/cal";
 import type { CalendarData } from "../../utils/cal.types";
@@ -9,97 +9,14 @@ import {
 	loadWeatherIcons,
 	weatherIcons,
 } from "../../utils/weather";
+import { registerManiaFont } from "../../utils/canvas";
+import {
+	processCalendarData,
+	groupEventsByDateFourColumn,
+} from "../../utils/calendar-processing";
 
 // Register Mania font
-const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
-registerFont(fontPath, { family: "Mania" });
-
-interface ProcessedEvent {
-	date: string;
-	time: string;
-	title: string;
-	isAllDay: boolean;
-}
-
-function formatDate(dateStr: string): string {
-	const date = new Date(dateStr);
-	return date.toLocaleDateString("en-UK", {
-		weekday: "short",
-		day: "numeric",
-	});
-}
-
-function removeEmojis(text: string): string {
-	if (typeof text !== "string") return "";
-
-	return text
-		.replace(
-			/[\u{1F300}-\u{1F6FF}\u{1F900}-\u{1F9FF}\u{1FA70}-\u{1FAFF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F191}-\u{1F251}\u{1F004}-\u{1F0CF}\u{1F170}-\u{1F171}\u{1F17E}-\u{1F17F}\u{1F18E}\u{3030}\u{2B50}\u{2B55}\u{2934}-\u{2935}\u{2B05}-\u{2B07}\u{2B1B}-\u{2B1C}\u{3297}\u{3299}\u{303D}\u{00A9}\u{00AE}\u{2122}\u{23F3}\u{24C2}\u{23E9}-\u{23EF}\u{25B6}\u{23F8}-\u{23FA}]/gu,
-			"",
-		)
-		.replace(/[\uFE00-\uFE0F\u{1F3FB}-\u{1F3FF}]/gu, "")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
-function processCalendarData(calendarData: CalendarData): ProcessedEvent[] {
-	const events: ProcessedEvent[] = [];
-
-	Object.entries(calendarData).forEach(([date, timeSlots]) => {
-		Object.entries(timeSlots).forEach(([time, eventTitles]) => {
-			eventTitles.forEach((title) => {
-				events.push({
-					date,
-					time,
-					title: removeEmojis(title),
-					isAllDay: time === "all-day" || time === "allday",
-				});
-			});
-		});
-	});
-
-	return events.sort((a, b) => {
-		const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
-		if (dateCompare !== 0) return dateCompare;
-
-		if (a.isAllDay && !b.isAllDay) return -1;
-		if (!a.isAllDay && b.isAllDay) return 1;
-		if (a.isAllDay && b.isAllDay) return 0;
-
-		return a.time.localeCompare(b.time);
-	});
-}
-
-function groupEventsByDate(
-	events: ProcessedEvent[],
-): Map<string, ProcessedEvent[]> {
-	const groupedByDate = new Map<string, ProcessedEvent[]>();
-
-	// Group by the raw YYYY-MM-DD date key for stable ordering
-	events.forEach((event) => {
-		groupedByDate.set(event.date, [
-			...(groupedByDate.get(event.date) ?? []),
-			event,
-		]);
-	});
-
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-
-	// Collect the earliest 4 upcoming event dates (inclusive of today)
-	const desiredDateKeys = Array.from(groupedByDate.keys())
-		.filter((dateKey) => new Date(dateKey).getTime() >= today.getTime())
-		.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
-		.slice(0, 4);
-
-	const finalEvents = new Map<string, ProcessedEvent[]>();
-
-	desiredDateKeys.forEach((dateKey) => {
-		finalEvents.set(formatDate(dateKey), groupedByDate.get(dateKey) ?? []);
-	});
-
-	return finalEvents;
-}
+registerManiaFont();
 
 export default async function handler(
 	req: NextApiRequest,
@@ -123,7 +40,7 @@ export default async function handler(
 			getWeatherForecast(location as string),
 		]);
 
-		const groupedEvents = groupEventsByDate(processedEvents);
+		const groupedEvents = groupEventsByDateFourColumn(processedEvents);
 
 		const canvasWidth = 1200;
 		const canvasHeight = 1600;
@@ -333,6 +250,7 @@ export default async function handler(
 		const buffer = rotatedCanvas.toBuffer("image/jpeg");
 		res.setHeader("Content-Type", "image/jpeg");
 		res.send(buffer);
+		// biome-ignore lint/suspicious/noExplicitAny: Im lazy
 	} catch (error: any) {
 		res.status(500).json({
 			error: "Failed to generate calendar image",

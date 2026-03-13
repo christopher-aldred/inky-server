@@ -2,6 +2,21 @@ import path from "path";
 import axios from "axios";
 import { loadImage } from "canvas";
 import { fetchWeatherApi } from "openmeteo";
+import type {
+	HourlyEntry,
+	CurrentWeather,
+	DetailedWeather,
+	WeatherForecast,
+	GeocodingResult,
+} from "./weather.types";
+
+export type {
+	HourlyEntry,
+	CurrentWeather,
+	DetailedWeather,
+	WeatherForecast,
+	GeocodingResult,
+};
 
 export const BASE_ICON_TYPES = [
 	"clear",
@@ -27,40 +42,6 @@ async function loadIcon(type: string): Promise<void> {
 export async function loadWeatherIcons(iconTypes = BASE_ICON_TYPES) {
 	await Promise.all(iconTypes.map((type) => loadIcon(type)));
 	return weatherIcons;
-}
-
-export interface HourlyEntry {
-	dt: number;
-	dt_txt: string;
-	main: { temp?: number; humidity?: number };
-	weather: Array<{ main: string; description: string }>;
-	wind: { speed?: number };
-	rain?: { "3h"?: number };
-	snow?: { "3h"?: number };
-	sun?: { sunrise?: number; sunset?: number };
-}
-
-export interface CurrentWeather {
-	main: { temp?: number; humidity?: number; feels_like?: number };
-	wind: { speed?: number };
-	weather: Array<{ main: string; description: string }>;
-	sys: { sunrise?: number; sunset?: number };
-	time?: number;
-}
-
-export interface DetailedWeather {
-	current: CurrentWeather;
-	next24Hours: HourlyEntry[];
-	uvIndex: number;
-	precipitation: number;
-	timezone?: string;
-	utcOffsetSeconds: number;
-}
-
-export interface WeatherForecast {
-	date: Date;
-	temp: number;
-	weather: string;
 }
 
 const WEATHER_CODE_MAP: Record<number, { main: string; description: string }> =
@@ -94,14 +75,6 @@ const WEATHER_CODE_MAP: Record<number, { main: string; description: string }> =
 		96: { main: "thunderstorm", description: "Thunderstorm with slight hail" },
 		99: { main: "thunderstorm", description: "Thunderstorm with heavy hail" },
 	};
-
-interface GeocodingResult {
-	latitude: number;
-	longitude: number;
-	timezone?: string;
-	name?: string;
-	country?: string;
-}
 
 function normalizeCountryCode(input?: string): string | undefined {
 	if (!input) return undefined;
@@ -143,6 +116,7 @@ export async function geocodeLocation(
 		},
 	);
 
+	// biome-ignore lint/suspicious/noExplicitAny: Im lazy
 	const results: any[] = response.data?.results ?? [];
 
 	// Prefer country match if provided
@@ -238,18 +212,10 @@ function isNighttime(
 	sunrise: number,
 	sunset: number,
 ): boolean {
-	const now = new Date(timestamp * 1000);
-	const currentTime = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60;
-
-	const sunriseTime = new Date(sunrise * 1000);
-	const sunriseSeconds =
-		sunriseTime.getUTCHours() * 3600 + sunriseTime.getUTCMinutes() * 60;
-
-	const sunsetTime = new Date(sunset * 1000);
-	const sunsetSeconds =
-		sunsetTime.getUTCHours() * 3600 + sunsetTime.getUTCMinutes() * 60;
-
-	return currentTime > sunsetSeconds || currentTime < sunriseSeconds;
+	// Simple hour-based check: 8pm (20:00) to 6am (06:00) is night
+	const date = new Date(timestamp * 1000);
+	const hour = date.getHours();
+	return hour >= 20 || hour < 6;
 }
 
 export function getWeatherIcon(
@@ -263,13 +229,16 @@ export function getWeatherIcon(
 ): string {
 	const main = weatherMain?.toLowerCase?.() ?? "clear";
 
+	// Show moon icon for clear weather at night
+	const isNight = options?.timestamp
+		? isNighttime(options.timestamp, options.sunrise ?? 0, options.sunset ?? 0)
+		: false;
+
 	if (
 		options?.includeNight &&
 		options.timestamp &&
-		options.sunrise &&
-		options.sunset &&
 		main === "clear" &&
-		isNighttime(options.timestamp, options.sunrise, options.sunset)
+		isNight
 	) {
 		return "moon";
 	}
@@ -382,7 +351,7 @@ export async function getWeatherDetails(
 		return Array.from({ length: len }, (_, i) => start + i * interval);
 	})();
 
-	const next24Hours: HourlyEntry[] = hourlyTimes.slice(0, 24).map((t, i) => {
+	const next24Hours: HourlyEntry[] = hourlyTimes.slice(0, 48).map((t, i) => {
 		const date = new Date((t + utcOffsetSeconds) * 1000);
 		const dayIdx = daily?.time()
 			? Math.floor((t - Number(daily.time())) / 86400)

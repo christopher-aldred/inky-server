@@ -1,6 +1,6 @@
 # Sheffield Weather Forecast Image Generator
 
-A TypeScript application that generates a dynamic weather forecast image for Sheffield, UK. The application uses the OpenWeather API to fetch weather data and generates an 800x480 JPEG image showing the next 24 hours of weather conditions.
+A TypeScript application that generates a dynamic weather forecast image for Sheffield, UK. The application uses the Open-Meteo API to fetch weather data and generates an 800x480 JPEG image showing the next 24 hours of weather conditions.
 
 ## Features
 
@@ -59,10 +59,9 @@ This project is configured for deployment on Netlify. To deploy:
 
 1. Create a new site on Netlify
 2. Connect your repository
-3. Add the following environment variable in Netlify's dashboard:
-   - OPENWEATHER_API_KEY: Your OpenWeather API key
+3. The site will automatically build and deploy when changes are pushed to the repository.
 
-The site will automatically build and deploy when changes are pushed to the repository.
+**Note:** This application uses the Open-Meteo API which does not require an API key.
 
 ## API Endpoint
 
@@ -75,5 +74,5 @@ The weather forecast image is available at:
 
 - TypeScript
 - Node.js Canvas for image generation
-- Netlify Functions
-- OpenWeather API
+- Netlify Functions (Next.js API Routes)
+- Open-Meteo API (free weather data, no API key required)

@@ -1,0 +1,11 @@
+import { registerFont } from "canvas";
+import path from "node:path";
+
+/**
+ * Register the Mania font for canvas rendering
+ * This should be called once before using the font in canvas operations
+ */
+export function registerManiaFont(): void {
+	const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
+	registerFont(fontPath, { family: "Mania" });
+}
