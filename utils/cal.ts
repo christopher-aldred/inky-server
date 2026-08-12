@@ -26,35 +26,42 @@ export async function convertCalendarsToJSON(
     typeof source === "string" ? { url: source } : source,
   );
 
-  const icalCache = new Map<string, string>();
+  // Fetch all iCal feeds up front, in parallel with limited concurrency.
+  // Downloading feeds one-by-one (the old behaviour) is serial network I/O that
+  // easily blows past the serverless function timeout when there are many feeds.
+  // Cache parsed expanders so we don't re-parse each feed on every window step.
+  const icalExpanderCache = new Map<string, IcalExpander>();
+
+  await fetchAllInParallel(
+    sourceObjs.map((sourceObj) => sourceObj.url),
+    6, // concurrency limit to avoid hammering iCloud/Google / rate limits
+    async (url) => {
+      try {
+        const ics = await fetchICalData(url);
+        icalExpanderCache.set(
+          url,
+          new IcalExpander({ ics, maxIterations: 5000 }),
+        );
+      } catch (error) {
+        console.warn(`Failed to fetch iCal source ${url}:`, error);
+      }
+    },
+  );
 
   const processWindow = async (windowEnd: Date) => {
     for (const sourceObj of sourceObjs) {
-      try {
-        if (!icalCache.has(sourceObj.url)) {
-          icalCache.set(sourceObj.url, await fetchICalData(sourceObj.url));
-        }
+      const icalExpander = icalExpanderCache.get(sourceObj.url);
+      if (!icalExpander) continue; // fetch failed, skip this source
 
-        const icalExpander = new IcalExpander({
-          ics: icalCache.get(sourceObj.url) as string,
-          maxIterations: 5000,
-        });
+      const expandedEvents = icalExpander.between(today, windowEnd);
 
-        const expandedEvents = icalExpander.between(today, windowEnd);
+      expandedEvents.events.forEach((event: IcalEvent) => {
+        addEventToCalendarData(calendarData, event, today);
+      });
 
-        expandedEvents.events.forEach((event: IcalEvent) => {
-          addEventToCalendarData(calendarData, event, today);
-        });
-
-        expandedEvents.occurrences.forEach((occurrence: IcalOccurrence) => {
-          addEventToCalendarData(calendarData, occurrence, today);
-        });
-      } catch (error) {
-        console.warn(
-          `Failed to process calendar source ${sourceObj.url}:`,
-          error,
-        );
-      }
+      expandedEvents.occurrences.forEach((occurrence: IcalOccurrence) => {
+        addEventToCalendarData(calendarData, occurrence, today);
+      });
     }
   };
 
@@ -76,6 +83,29 @@ export async function convertCalendarsToJSON(
   }
 
   return calendarData;
+}
+
+/**
+ * Run async tasks with a maximum number executing concurrently.
+ * Rejects if any task rejects (promise refusals propagate).
+ */
+async function fetchAllInParallel<T>(
+  items: T[],
+  concurrency: number,
+  worker: (item: T) => Promise<void>,
+): Promise<void> {
+  if (items.length === 0) return;
+
+  let index = 0;
+  const queue = Math.min(concurrency, items.length);
+  const workers = Array.from({ length: queue }, async () => {
+    while (index < items.length) {
+      const current = index++;
+      await worker(items[current]);
+    }
+  });
+
+  await Promise.all(workers);
 }
 
 async function fetchICalData(url: string): Promise<string> {
