@@ -109,27 +109,27 @@ export function sunOrUvRow(
 		(d) => localDateKey(d.sunrise, timeZone) === localDateKey(now, timeZone),
 	);
 	const today = days[todayIndex];
-	if (!today) return { label: "UV Index: ", value: "-" };
+	if (!today) return { label: "UV Index ", value: "-" };
 
 	const isDay = now >= today.sunrise && now < today.sunset;
 	if (isDay && today.uvMax >= UV_SHOW_FROM) {
-		return { label: "UV Index: ", value: today.uvMax.toFixed(1) };
+		return { label: "UV Index ", value: today.uvMax.toFixed(1) };
 	}
 	if (now < today.sunrise) {
 		return {
-			label: "Sunrise: ",
+			label: "Sunrise ",
 			value: formatLocalTime(today.sunrise, timeZone),
 		};
 	}
 	if (now < today.sunset) {
 		return {
-			label: "Sunset: ",
+			label: "Sunset ",
 			value: formatLocalTime(today.sunset, timeZone),
 		};
 	}
 	const tomorrow = days[todayIndex + 1];
 	return {
-		label: "Sunrise: ",
+		label: "Sunrise ",
 		value: tomorrow ? formatLocalTime(tomorrow.sunrise, timeZone) : "-",
 	};
 }
@@ -247,19 +247,19 @@ export function buildScreenModel(
 		details: {
 			left: [
 				{
-					label: "Wind: ",
+					label: "Wind ",
 					value: `${windSpeed} km/h ${compassDirection(current.windDirection)}`,
 				},
 				{
-					label: "Gusts: ",
+					label: "Gusts ",
 					value: `${windGust} km/h`,
 					highlight: windGust > GUST_WARNING_KMH,
 				},
-				{ label: "Feels Like: ", value: formatTemp(current.feelsLike) },
+				{ label: "Feels Like ", value: formatTemp(current.feelsLike) },
 			],
 			right: [
-				{ label: "Rain: ", value: `${weather.precipitation.toFixed(1)} mm` },
-				{ label: "Humidity: ", value: `${Math.round(current.humidity)}%` },
+				{ label: "Rain ", value: `${weather.precipitation.toFixed(1)} mm` },
+				{ label: "Humidity ", value: `${Math.round(current.humidity)}%` },
 				sunOrUvRow(now, days, timezone),
 			],
 		},
