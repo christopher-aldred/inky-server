@@ -46,10 +46,12 @@ export const GRAPH = {
 	axisY: AXIS_Y,
 	/** Night shading starts just below the detail rows. */
 	shadeTop: 184,
+	/** Rule along the top of the graph area, just above the shading. */
+	topRuleY: 180,
 	/** Band the temperature line stays inside. Top leaves room for the
 	 * high/low label above it; bottom keeps the line (8px wide) 14px clear of
 	 * the icon row. */
-	lineTop: 220,
+	lineTop: 226,
 	lineBottom: AXIS_Y - SMALL_ICON - 10 - 14 - 4,
 	lineWidth: 8,
 	smallIcon: SMALL_ICON,
