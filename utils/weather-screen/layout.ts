@@ -48,6 +48,9 @@ export const GRAPH = {
 	shadeTop: 184,
 	/** Rule along the top of the graph area, just above the shading. */
 	topRuleY: 180,
+	/** Night shading and dashed lines start right under the 2px rule, so no
+	 * white gap shows between them (per Chris). */
+	nightTop: 181,
 	/** Band the temperature line stays inside. Top leaves room for the
 	 * high/low label above it; bottom keeps the line (8px wide) 14px clear of
 	 * the icon row. */
@@ -79,7 +82,7 @@ export const GRAPH = {
 	dotSpacing: 6,
 	/** Night shading: a 1px dither from white at sunset to `maxDensity`
 	 * black after `fadeHours`, and back before sunrise. */
-	night: { fadeHours: 3, maxDensity: 13 / 16 },
+	night: { fadeHours: 3, maxDensity: 12 / 16 },
 	dotSize: 2,
 	/** Corner radius of the white boxes behind graph labels. */
 	labelRadius: 8,
