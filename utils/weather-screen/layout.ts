@@ -80,9 +80,9 @@ export const GRAPH = {
 	deepNightFadeHours: 6,
 	dotSize: 2,
 	/** Corner radius of the white boxes behind graph labels. */
-	labelRadius: 4,
+	labelRadius: 8,
 	/** White edge around drop/flake icons, in px. */
-	iconHalo: 2,
+	iconHalo: 4,
 	/** Red dot on the temperature line at the current time. */
 	nowDotRadius: 8,
 	/** Little white stars in the darkest part of each night. */
