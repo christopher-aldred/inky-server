@@ -62,11 +62,11 @@ export const GRAPH = {
 	humidity: {
 		color: "#0096FF",
 		width: 3,
-		outline: 2,
+		outline: 4,
 		dash: [] as number[],
 	},
 	/** White edge either side of the temperature line, in px. */
-	lineOutline: 3,
+	lineOutline: 5,
 	smallIcon: SMALL_ICON,
 	/** y (top) of the small icons. */
 	iconY: AXIS_Y - SMALL_ICON - 10,
