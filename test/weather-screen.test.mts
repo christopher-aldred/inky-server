@@ -312,3 +312,17 @@ test("each graph column sums up the hour before to the hour after", () => {
 		"thunderstorm",
 	);
 });
+
+test("graph points carry the hour's humidity for the humidity line", () => {
+	const weather = londonWeather();
+	const model = buildScreenModel(weather, {
+		location: "London,UK",
+		now: weather.current.time,
+		warning: null,
+	});
+	for (const point of model.graph.points) {
+		const hour = weather.hourly.find((h) => h.dt === point.time);
+		assert.equal(point.humidity, hour?.humidity);
+	}
+	assert.ok(model.graph.after && model.graph.after.humidity > 0);
+});

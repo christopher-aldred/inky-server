@@ -321,13 +321,6 @@ function drawHumidityLine(
 	path();
 	ctx.stroke();
 	ctx.restore();
-
-	// Label the line at its right-hand end
-	const lx = SCREEN.width - 8;
-	const ly = y(last.humidity);
-	drawLatticeLabel(ctx, style.label, style.color, (w, h) =>
-		lattice.boxOrigin(lx - w / 2, ly - h / 2 - 22, w, h),
-	);
 }
 
 /**
@@ -646,7 +639,7 @@ export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	drawMidnightDividers(ctx, graph, scale.x);
 	drawNowLine(ctx, graph, scale);
 	drawRule(ctx, GRAPH.axisY);
-	if (GRAPH.humidity.show) drawHumidityLine(ctx, graph, scale);
+	drawHumidityLine(ctx, graph, scale);
 	drawTemperatureLine(ctx, graph, scale);
 	drawNowDot(ctx, graph, scale);
 	drawPointLabels(ctx, graph, scale);
