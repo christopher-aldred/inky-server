@@ -63,6 +63,9 @@ export interface ScreenModel {
 		after: { time: number; temp: number; humidity: number } | null;
 		/** [start, end] Unix-second ranges of darkness (sunset to sunrise). */
 		nights: Array<[number, number]>;
+		/** Real twilight length (hours) for each night, so the fade into the
+		 * night is longer in summer and shorter in winter. */
+		twilightHours: number[];
 		/** Local midnights inside the window, labelled with the new day. */
 		midnights: Array<{ time: number; label: string }>;
 		highIndex: number;
@@ -136,6 +139,42 @@ export function sunOrUvRow(
 		label: "Sunrise ",
 		value: tomorrow ? formatLocalTime(tomorrow.sunrise, timeZone) : "-",
 	};
+}
+
+const LONDON_LATITUDE = 51.5;
+const RAD = Math.PI / 180;
+/** Sun altitude at sunset/sunrise as Open-Meteo defines them (refraction). */
+const SUNSET_ALTITUDE = -0.833;
+/** End of astronomical twilight: properly dark. */
+const DARK_ALTITUDE = -18;
+
+/**
+ * Hours from sunset until it's properly dark (sun 18° down) on the day of
+ * `time`, at `latitude`. Around midsummer in the UK the sun never gets that
+ * low, so this extrapolates from how deep it does get by solar midnight:
+ * longer than half the night, so the darkest part stays lighter.
+ */
+export function twilightHours(time: number, latitude: number): number {
+	const yearStart = Date.UTC(new Date(time * 1000).getUTCFullYear(), 0, 1);
+	const doy = (time * 1000 - yearStart) / 86_400_000;
+	const dec = -23.44 * RAD * Math.cos((2 * Math.PI * (doy + 10)) / 365);
+	const lat = latitude * RAD;
+	/** Hour angle (hours from solar noon) when the sun is at `altitude`. */
+	const hourAngle = (altitude: number) => {
+		const c =
+			(Math.sin(altitude * RAD) - Math.sin(lat) * Math.sin(dec)) /
+			(Math.cos(lat) * Math.cos(dec));
+		return c < -1 ? null : Math.acos(Math.min(1, c)) / RAD / 15;
+	};
+	const sunset = hourAngle(SUNSET_ALTITUDE) ?? 12;
+	const dark = hourAngle(DARK_ALTITUDE);
+	if (dark !== null) return dark - sunset;
+	// Never properly dark: deepest is at solar midnight
+	const deepest = 90 - Math.abs(latitude + dec / RAD);
+	return (
+		((12 - sunset) * (SUNSET_ALTITUDE - DARK_ALTITUDE)) /
+		Math.max(0.1, deepest + SUNSET_ALTITUDE)
+	);
 }
 
 /** Dark periods: before the first sunrise, and each sunset to next sunrise. */
@@ -304,6 +343,12 @@ export function buildScreenModel(
 			before,
 			after,
 			nights: nightRanges(days),
+			twilightHours: nightRanges(days).map(([start, end]) =>
+				twilightHours(
+					Number.isFinite(start) ? start : end,
+					weather.latitude ?? LONDON_LATITUDE,
+				),
+			),
 			midnights: localMidnights(
 				hourly,
 				before?.time ?? windowStart,

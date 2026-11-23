@@ -104,9 +104,18 @@ export function ditherDotOn(
 	return density * 16 > threshold;
 }
 
+/** How many pixels night `i` takes to fade in (and out), from its real
+ * twilight length stretched by `GRAPH.night.twilightScale`. */
+function nightFadePx(graph: Graph, i: number): number {
+	const { fadeHours, twilightScale } = GRAPH.night;
+	const twilight = graph.twilightHours?.[i];
+	const hours = twilight === undefined ? fadeHours : twilight * twilightScale;
+	return (hours / GRAPH.stepHours) * GRAPH.step;
+}
+
 /**
  * Night shading: a fine 1px ordered dither that builds from white at sunset
- * to its darkest after `GRAPH.night.fadeHours`, and back before sunrise. The
+ * to its darkest over that night's twilight, and back before sunrise. The
  * darkest is a touch off solid black (`maxDensity`). Stars are left white.
  */
 function drawNightShading(
@@ -115,13 +124,13 @@ function drawNightShading(
 	x: (t: number) => number,
 	stars: { x: number; y: number }[],
 ) {
-	const { fadeHours, maxDensity } = GRAPH.night;
-	const fadePx = (fadeHours / GRAPH.stepHours) * GRAPH.step;
+	const { maxDensity } = GRAPH.night;
 	const top = GRAPH.nightTop;
 	const bottom = GRAPH.axisY - 1;
 	const r = GRAPH.stars.radius;
 	ctx.fillStyle = COLORS.black;
-	for (const [start, end] of graph.nights) {
+	graph.nights.forEach(([start, end], i) => {
+		const fadePx = nightFadePx(graph, i);
 		const from = x(start);
 		const to = x(end);
 		const left = Math.max(0, Math.floor(from));
@@ -136,7 +145,7 @@ function drawNightShading(
 				ctx.fillRect(px, py, 1, 1);
 			}
 		}
-	}
+	});
 }
 
 /**
@@ -434,12 +443,12 @@ function hash01(n: number): number {
  * the line, so they stay put between refreshes.
  */
 export function starPositions(
-	nights: [number, number][],
+	nights: Array<[number, number, number?]>,
 	lineY: (x: number) => number,
 	avoid: Rect[],
 ): { x: number; y: number }[] {
 	const { every, extra, minGap, minDensity, clearance, radius } = GRAPH.stars;
-	const deepFadePx = (GRAPH.night.fadeHours / GRAPH.stepHours) * GRAPH.step;
+	const defaultFadePx = (GRAPH.night.fadeHours / GRAPH.stepHours) * GRAPH.step;
 	const top = GRAPH.shadeTop + radius + 6;
 	const bottom = GRAPH.iconY - radius - 6;
 	const clear = (x: number, y: number) =>
@@ -453,7 +462,7 @@ export function starPositions(
 		);
 
 	const stars: { x: number; y: number }[] = [];
-	for (const [nightFrom, nightTo] of nights) {
+	for (const [nightFrom, nightTo, deepFadePx = defaultFadePx] of nights) {
 		const from = Math.max(radius + 4, nightFrom + minDensity * deepFadePx);
 		const to = Math.min(
 			SCREEN.width - radius - 4,
@@ -517,7 +526,12 @@ function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	avoid.push({ x: nx - 60, y: GRAPH.shadeTop, w: 120, h: 60 });
 	avoid.push({ x: nx - 2, y: GRAPH.shadeTop, w: 4, h: GRAPH.axisY });
 	const nights = graph.nights.map(
-		([a, b]) => [scale.x(a), scale.x(b)] as [number, number],
+		([a, b], i) =>
+			[scale.x(a), scale.x(b), nightFadePx(graph, i)] as [
+				number,
+				number,
+				number,
+			],
 	);
 	// Centre each star on a dot so its arms run along a dot row and column
 	const s = GRAPH.dotSpacing;
