@@ -82,7 +82,7 @@ export const GRAPH = {
 	/** Corner radius of the white boxes behind graph labels. */
 	labelRadius: 8,
 	/** White edge around drop/flake icons, in px. */
-	iconHalo: 4,
+	iconHalo: 6,
 	/** Red dot on the temperature line at the current time. */
 	nowDotRadius: 8,
 	/** Little white stars in the darkest part of each night. */
