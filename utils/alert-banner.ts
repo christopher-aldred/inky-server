@@ -13,8 +13,9 @@ export type AlertBannerStyle = "solid" | "outline";
  * Header bar drawn in place of the weather title row while an alert is
  * active: message on the left, current temperature on the right.
  *
- * Text is centred on the measured ink of the message (not the font's em box,
- * which Mania pads unevenly), so it sits in the middle of the bar.
+ * Text is placed by measured glyph ink, not the font's em box (which Mania
+ * pads unevenly). The full ink box (caps to descenders) is centred, then
+ * lifted a few px because the pixel font's heavy caps make it read low.
  */
 export function drawAlertBanner(
 	ctx: SKRSContext2D,
@@ -43,9 +44,11 @@ export function drawAlertBanner(
 	ctx.font = "42px Mania";
 	ctx.textBaseline = "alphabetic";
 
-	const m = ctx.measureText(message);
+	const ink = ctx.measureText("Hy");
+	const optical = 3;
 	const baseline = Math.round(
-		(height + m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2,
+		(height + ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2 -
+			optical,
 	);
 
 	ctx.fillText(message, padding, baseline);
