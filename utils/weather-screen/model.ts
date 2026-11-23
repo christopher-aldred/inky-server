@@ -167,6 +167,32 @@ export function localMidnights(
 }
 
 /** Icon for a time, using that local day's sunrise/sunset for night. */
+/** Wet weather, worst first: one of these anywhere in a block shows. */
+const WET_WEATHER = ["thunderstorm", "snow", "rain"];
+
+/**
+ * Sums up the hours a graph column stands for (the hour before to the hour
+ * after its label), so weather between columns isn't missed: the highest
+ * rain chance, and the worst wet weather if any hour has it, otherwise the
+ * labelled hour's own weather.
+ */
+export function summariseBlock(
+	hourly: ReadonlyArray<HourlyEntry>,
+	index: number,
+): { weatherMain: string; rainChance: number } {
+	const block = hourly.slice(Math.max(0, index - 1), index + 2);
+	const own = hourly[index];
+	const rainChance = Math.max(
+		0,
+		...block.map((e) => e.precipitationProbability),
+	);
+	const wet = WET_WEATHER.find((w) => block.some((e) => e.weatherMain === w));
+	return {
+		weatherMain: wet ?? own?.weatherMain ?? "clear",
+		rainChance: Math.round(rainChance),
+	};
+}
+
 function iconAt(
 	weatherMain: string,
 	time: number,
@@ -218,13 +244,16 @@ export function buildScreenModel(
 		GRAPH.pointCount,
 		GRAPH.stepHours,
 	);
-	const points: GraphPoint[] = picked.map((entry) => ({
-		time: entry.dt,
-		temp: entry.temp,
-		icon: iconAt(entry.weatherMain, entry.dt, days, timezone),
-		hourLabel: formatLocalHour(entry.dt, timezone),
-		rainChance: Math.round(entry.precipitationProbability),
-	}));
+	const points: GraphPoint[] = picked.map((entry) => {
+		const block = summariseBlock(hourly, hourly.indexOf(entry));
+		return {
+			time: entry.dt,
+			temp: entry.temp,
+			icon: iconAt(block.weatherMain, entry.dt, days, timezone),
+			hourLabel: formatLocalHour(entry.dt, timezone),
+			rainChance: block.rainChance,
+		};
+	});
 
 	const endIndex = startIndex + (picked.length - 1) * GRAPH.stepHours;
 	const edge = (index: number) => {
