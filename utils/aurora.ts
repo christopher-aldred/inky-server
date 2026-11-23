@@ -9,9 +9,8 @@ import { fetchWithTimeout } from "./http";
  * - NOAA SWPC planetary Kp forecast: 3-hourly Kp for the next ~3 days.
  *   https://www.swpc.noaa.gov/products/planetary-k-index
  *
- * At London's latitude aurora is only realistically visible when
- * AuroraWatch reaches amber/red or Kp reaches about 6+, so anything
- * lower produces no alert at all.
+ * Chris only wants the banner for an AuroraWatch UK red alert. The Kp
+ * forecast is still fetched so the banner can say how strong it is.
  */
 
 export const AURORAWATCH_URL =
@@ -106,20 +105,17 @@ export function maxKpInWindow(
 	return max;
 }
 
-/** Kp at which aurora is plausible / likely from southern England. */
-export const KP_POSSIBLE = 6;
-export const KP_LIKELY = 7;
-
+/**
+ * Alert only on AuroraWatch UK red ("aurora likely to be visible by eye
+ * from anywhere in the UK"). Amber and a high Kp forecast alone don't show.
+ */
 export function assessAurora(
 	status: AuroraWatchStatus | null,
 	kp: number | null,
 ): AuroraAlert | null {
-	const likely = status === "red" || (kp !== null && kp >= KP_LIKELY);
-	const possible =
-		likely || status === "amber" || (kp !== null && kp >= KP_POSSIBLE);
-	if (!possible) return null;
+	if (status !== "red") return null;
 
-	const level: AuroraLevel = likely ? "likely" : "possible";
+	const level: AuroraLevel = "likely";
 	return {
 		level,
 		kp,

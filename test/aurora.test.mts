@@ -61,15 +61,22 @@ test("maxKpInWindow includes the slot in progress and ignores past/far slots", (
 	assert.equal(maxKpInWindow([], at("2026-11-23T10:00:00Z")), null);
 });
 
-test("assessAurora only alerts when visible from London", () => {
+test("assessAurora only alerts on an AuroraWatch UK red alert", () => {
 	assert.equal(assessAurora("green", 3), null);
 	assert.equal(assessAurora("yellow", 5.67), null);
 	assert.equal(assessAurora(null, null), null);
-	assert.equal(assessAurora("amber", null)?.level, "possible");
-	assert.equal(assessAurora("green", 6)?.level, "possible");
-	assert.equal(assessAurora("red", 2)?.level, "likely");
-	assert.equal(assessAurora(null, 7)?.level, "likely");
-	assert.equal(assessAurora("amber", 7.33)?.message, "Aurora likely tonight!");
+	// Amber, or a high Kp forecast on its own, no longer shows a banner
+	assert.equal(assessAurora("amber", null), null);
+	assert.equal(assessAurora("amber", 7.33), null);
+	assert.equal(assessAurora("green", 8), null);
+	assert.equal(assessAurora(null, 9), null);
+	// Red does, and carries the Kp forecast when there is one
+	assert.deepEqual(assessAurora("red", 7.33), {
+		level: "likely",
+		kp: 7.33,
+		message: "Aurora likely tonight!",
+	});
+	assert.equal(assessAurora("red", null)?.level, "likely");
 });
 
 test("formatKp", () => {
