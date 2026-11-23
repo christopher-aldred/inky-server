@@ -205,10 +205,16 @@ export function buildScreenModel(
 	const windSpeed = Math.round(current.windSpeed);
 	const windGust = Math.round(current.windGust);
 
-	// Graph points every few hours from the current hour
+	// Graph points every few hours, starting a little in the past so the
+	// recent trend shows. Hourly data starts at local midnight, so very early
+	// in the day the graph starts at midnight instead.
+	const startIndex = Math.max(
+		0,
+		findCurrentHourIndex(hourly, now) - GRAPH.pastHours,
+	);
 	const picked = selectGraphHours(
 		hourly,
-		now,
+		hourly[startIndex]?.dt ?? now,
 		GRAPH.pointCount,
 		GRAPH.stepHours,
 	);
@@ -220,7 +226,6 @@ export function buildScreenModel(
 		rainChance: Math.round(entry.precipitationProbability),
 	}));
 
-	const startIndex = findCurrentHourIndex(hourly, now);
 	const endIndex = startIndex + (picked.length - 1) * GRAPH.stepHours;
 	const edge = (index: number) => {
 		const entry = hourly[Math.max(0, Math.min(hourly.length - 1, index))];
