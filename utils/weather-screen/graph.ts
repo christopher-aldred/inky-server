@@ -1,6 +1,6 @@
-import type { SKRSContext2D } from "@napi-rs/canvas";
+import { type Canvas, createCanvas, type SKRSContext2D } from "@napi-rs/canvas";
 import { getCurvePoints, getTemperatureColor } from "../chart";
-import { weatherIcons } from "../weather";
+import { type IconImage, weatherIcons } from "../weather";
 import { COLORS, GRAPH, SCREEN } from "./layout";
 import { RAIN_CHANCE_WARNING, type ScreenModel } from "./model";
 
@@ -299,13 +299,41 @@ function drawLatticeLabel(
 	const box = place(w, h);
 
 	ctx.fillStyle = COLORS.white;
-	ctx.fillRect(box.x, box.y, w, h);
+	ctx.beginPath();
+	ctx.roundRect(box.x, box.y, w, h, GRAPH.labelRadius);
+	ctx.fill();
 	ctx.fillStyle = color;
 	ctx.fillText(
 		text,
 		Math.round(box.x + (w - inkW) / 2 + m.actualBoundingBoxLeft),
 		Math.round(box.y + (h - inkH) / 2 + m.actualBoundingBoxAscent),
 	);
+}
+
+/** Icons with loose drops or flakes get a white edge, so the drops stand
+ * out from the night dots. */
+const HALO_ICONS = new Set(["rain", "thunderstorm", "snow"]);
+const halos = new Map<string, Canvas>();
+
+/** White silhouette of an icon, grown by GRAPH.iconHalo px all round. */
+function iconHalo(name: string, icon: IconImage, size: number): Canvas {
+	const key = `${name}@${size}`;
+	const cached = halos.get(key);
+	if (cached) return cached;
+	const pad = GRAPH.iconHalo;
+	const canvas = createCanvas(size + pad * 2, size + pad * 2);
+	const hctx = canvas.getContext("2d");
+	for (let dx = -pad; dx <= pad; dx++) {
+		for (let dy = -pad; dy <= pad; dy++) {
+			if (dx * dx + dy * dy > pad * pad) continue;
+			hctx.drawImage(icon, pad + dx, pad + dy, size, size);
+		}
+	}
+	hctx.globalCompositeOperation = "source-in";
+	hctx.fillStyle = COLORS.white;
+	hctx.fillRect(0, 0, canvas.width, canvas.height);
+	halos.set(key, canvas);
+	return canvas;
 }
 
 function drawPointLabels(
@@ -327,6 +355,11 @@ function drawPointLabels(
 		const icon = weatherIcons[point.icon];
 		if (icon) {
 			const size = GRAPH.smallIcon;
+			if (HALO_ICONS.has(point.icon)) {
+				const halo = iconHalo(point.icon, icon, size);
+				const pad = GRAPH.iconHalo;
+				ctx.drawImage(halo, x - size / 2 - pad, GRAPH.iconY - pad);
+			}
 			ctx.drawImage(icon, x - size / 2, GRAPH.iconY, size, size);
 		}
 
