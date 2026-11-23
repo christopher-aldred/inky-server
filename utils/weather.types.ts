@@ -9,6 +9,8 @@ export interface HourlyEntry {
 	precipitation: number;
 	/** Chance of precipitation this hour, 0-100. */
 	precipitationProbability: number;
+	/** Relative humidity, 0-100. */
+	humidity: number;
 }
 
 /** Conditions right now. */
