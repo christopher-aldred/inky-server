@@ -92,30 +92,42 @@ export function nightDotDensity(
 }
 
 /** Whether the dot at lattice column/row `col`,`row` shows at `density`. */
-export function ditherDotOn(col: number, row: number, density: number): boolean {
+export function ditherDotOn(
+	col: number,
+	row: number,
+	density: number,
+): boolean {
 	const threshold = BAYER_4[((row % 4) + 4) % 4][((col % 4) + 4) % 4];
 	return density * 16 > threshold;
 }
 
-function drawNightShading(
+/**
+ * Dot layer for the nights: `fadeHours` sets how long the dots take to build
+ * up after sunset and thin out before sunrise; `offset` shifts the whole
+ * layer (used to slot the deep-night layer between the black dots).
+ */
+function drawNightDots(
 	ctx: SKRSContext2D,
 	graph: Graph,
 	x: (t: number) => number,
+	color: string,
+	fadeHours: number,
+	offset: number,
 ) {
 	const { dotSpacing: s, dotSize, shadeTop, axisY } = GRAPH;
-	const fadePx = (GRAPH.nightFadeHours / GRAPH.stepHours) * GRAPH.step;
-	ctx.fillStyle = COLORS.dots;
+	const fadePx = (fadeHours / GRAPH.stepHours) * GRAPH.step;
+	ctx.fillStyle = color;
 	for (const [start, end] of graph.nights) {
 		const nightFrom = x(start);
 		const nightTo = x(end);
 		const from = Math.max(0, nightFrom);
 		const to = Math.min(SCREEN.width, nightTo);
 		if (to <= from) continue;
-		for (let dx = lattice.snapX(from); dx <= to; dx += s) {
+		for (let dx = lattice.snapX(from) + offset; dx <= to; dx += s) {
 			const density = nightDotDensity(dx, nightFrom, nightTo, fadePx);
-			const col = Math.round((dx - GRAPH.firstX) / s);
-			for (let dy = axisY - s; dy >= shadeTop; dy -= s) {
-				const row = Math.round((axisY - dy) / s);
+			const col = Math.round((dx - offset - GRAPH.firstX) / s);
+			for (let dy = axisY - s - offset; dy >= shadeTop; dy -= s) {
+				const row = Math.round((axisY - offset - dy) / s);
 				if (!ditherDotOn(col, row, density)) continue;
 				ctx.fillRect(dx - dotSize / 2, dy - dotSize / 2, dotSize, dotSize);
 			}
@@ -123,21 +135,45 @@ function drawNightShading(
 	}
 }
 
+/** Black dots for the whole night, plus grey ones filling in the middle. */
+function drawNightShading(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	x: (t: number) => number,
+) {
+	drawNightDots(ctx, graph, x, COLORS.dots, GRAPH.nightFadeHours, 0);
+	drawNightDots(
+		ctx,
+		graph,
+		x,
+		COLORS.deepNightDots,
+		GRAPH.deepNightFadeHours,
+		GRAPH.dotSpacing / 2,
+	);
+}
+
 function drawMidnightDividers(
 	ctx: SKRSContext2D,
 	graph: Graph,
 	x: (t: number) => number,
 ) {
+	const iconXs = graph.points.map((p) => x(p.time));
 	for (const { time, label } of graph.midnights) {
 		const mx = x(time);
 		if (mx < 0 || mx > SCREEN.width) continue;
+
+		// Run to the bottom of the shading, unless an icon sits in the way
+		const hitsIcon = iconXs.some(
+			(ix) => Math.abs(ix - mx) < GRAPH.smallIcon / 2 + 4,
+		);
+		const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
 
 		ctx.strokeStyle = COLORS.black;
 		ctx.lineWidth = 2;
 		ctx.setLineDash([6, 6]);
 		ctx.beginPath();
 		ctx.moveTo(mx, GRAPH.shadeTop);
-		ctx.lineTo(mx, GRAPH.iconY - 4); // stop above the icons
+		ctx.lineTo(mx, bottom);
 		ctx.stroke();
 		ctx.setLineDash([]);
 

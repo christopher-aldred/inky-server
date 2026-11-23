@@ -11,6 +11,8 @@ export const COLORS = {
 	white: "#FFFFFF",
 	grey: "#666666",
 	dots: "#000000",
+	/** Second, offset layer of night dots for the darkest hours. */
+	deepNightDots: "#777777",
 } as const;
 
 export const HEADER = {
@@ -68,5 +70,10 @@ export const GRAPH = {
 	dotSpacing: 6,
 	/** Night dots fade in over this long after sunset and out before sunrise. */
 	nightFadeHours: 3.5,
+	/** A second layer of grey dots, offset half a cell from the black ones,
+	 * darkens the middle of the night. It builds up over this long after
+	 * sunset and thins out before sunrise, so it's densest around the middle
+	 * and barely shows on short summer nights. */
+	deepNightFadeHours: 6,
 	dotSize: 2,
 } as const;
