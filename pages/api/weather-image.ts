@@ -20,6 +20,8 @@ import {
 	formatLocalHour,
 	selectGraphHours,
 } from "../../utils/weather-time";
+import { formatKp, getAuroraAlert } from "../../utils/aurora";
+import { drawAlertBanner } from "../../utils/alert-banner";
 
 // Register Mania font
 registerManiaFont();
@@ -33,6 +35,9 @@ export default async function handler(
 
 		// Load weather icons before proceeding (include moon for night)
 		await loadWeatherIcons(NIGHT_ICON_TYPES);
+
+		// Aurora alert is fetched alongside the weather; it never throws.
+		const auroraAlertPromise = getAuroraAlert();
 
 		// Get current weather and hourly forecast
 		const { current, next24Hours, uvIndex, precipitation, timezone } =
@@ -71,11 +76,14 @@ export default async function handler(
 			hour12: false,
 		});
 		const formattedDateTimeStr = dateTimeFormatter.format(now);
-		ctx.fillText(
-			`Weather ${location.split(",")[0]}, ${formattedDateTimeStr}`,
-			20,
-			15,
-		);
+		const auroraAlert = await auroraAlertPromise;
+		if (!auroraAlert) {
+			ctx.fillText(
+				`Weather ${location.split(",")[0]}, ${formattedDateTimeStr}`,
+				20,
+				15,
+			);
+		}
 
 		ctx.fillStyle = "#000000";
 
@@ -105,7 +113,23 @@ export default async function handler(
 		const iconX = canvas.width - rightMargin - iconSize;
 
 		// Draw temperature and icon
-		ctx.fillText(currentTemp, tempX, 15);
+		if (auroraAlert) {
+			// Red bar replaces the title row (and holds the temperature)
+			const message =
+				auroraAlert.kp !== null
+					? `${auroraAlert.message} ${formatKp(auroraAlert.kp)}`
+					: auroraAlert.message;
+			drawAlertBanner(
+				ctx,
+				message,
+				"solid",
+				currentTemp,
+				canvas.width,
+				rightMargin,
+			);
+		} else {
+			ctx.fillText(currentTemp, tempX, 15);
+		}
 		ctx.drawImage(weatherIcons[weatherIcon], iconX, 60, iconSize, iconSize);
 
 		ctx.font = "32px Mania";
