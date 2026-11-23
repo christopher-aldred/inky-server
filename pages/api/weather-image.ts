@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createCanvas } from "canvas";
+import { createCanvas } from "@napi-rs/canvas";
 import {
 	type HourlyEntry,
 	getWeatherIcon,

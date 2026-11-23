@@ -1,6 +1,6 @@
 import path from "path";
 import axios from "axios";
-import { loadImage } from "canvas";
+import { loadImage } from "@napi-rs/canvas";
 import { fetchWeatherApi } from "openmeteo";
 import type {
 	HourlyEntry,
