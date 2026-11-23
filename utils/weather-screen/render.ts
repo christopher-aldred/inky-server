@@ -20,7 +20,7 @@ function drawHeader(ctx: SKRSContext2D, model: ScreenModel) {
 	} else {
 		ctx.font = HEADER.font;
 		ctx.textBaseline = "top";
-		ctx.fillStyle = COLORS.red;
+		ctx.fillStyle = COLORS.black;
 		ctx.fillText(model.title, SCREEN.margin, HEADER.titleY);
 		ctx.fillStyle = COLORS.black;
 		const w = ctx.measureText(model.currentTemp).width;
