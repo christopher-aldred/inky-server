@@ -149,7 +149,9 @@ let cache: { at: number; alert: AuroraAlert | null } | null = null;
  * Cached for 15 minutes per server instance, as AuroraWatch UK asks
  * clients not to poll more often than needed.
  */
-export async function getAuroraAlert(now = new Date()): Promise<AuroraAlert | null> {
+export async function getAuroraAlert(
+	now = new Date(),
+): Promise<AuroraAlert | null> {
 	if (cache && now.getTime() - cache.at < CACHE_MS) return cache.alert;
 
 	const [statusResult, kpResult] = await Promise.allSettled([
@@ -171,7 +173,8 @@ export async function getAuroraAlert(now = new Date()): Promise<AuroraAlert | nu
 		console.warn("NOAA Kp forecast fetch failed:", kpResult.reason);
 	}
 
-	const status = statusResult.status === "fulfilled" ? statusResult.value : null;
+	const status =
+		statusResult.status === "fulfilled" ? statusResult.value : null;
 	const kp = kpResult.status === "fulfilled" ? kpResult.value : null;
 	const alert = assessAurora(status, kp);
 

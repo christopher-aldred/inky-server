@@ -13,9 +13,9 @@ export type AlertBannerStyle = "solid" | "outline";
  * Header bar drawn in place of the weather title row while an alert is
  * active: message on the left, current temperature on the right.
  *
- * Text is placed by measured glyph ink, not the font's em box (which Mania
- * pads unevenly). The full ink box (caps to descenders) is centred, then
- * lifted a few px because the pixel font's heavy caps make it read low.
+ * Text is placed so the capital letters are exactly centred in the bar
+ * (measured ink of "H", not the font's em box, which Mania pads unevenly).
+ * Descenders (y, g) hang below; Chris picked this over centring the full ink.
  */
 export function drawAlertBanner(
 	ctx: SKRSContext2D,
@@ -41,19 +41,28 @@ export function drawAlertBanner(
 		ctx.fillStyle = "#FF0000";
 	}
 
-	ctx.font = "42px Mania";
 	ctx.textBaseline = "alphabetic";
 
-	const ink = ctx.measureText("Hy");
-	const optical = 3;
-	const baseline = Math.round(
-		(height + ink.actualBoundingBoxAscent - ink.actualBoundingBoxDescent) / 2 -
-			optical,
-	);
+	// Shrink long messages so they never run into the temperature.
+	ctx.font = "42px Mania";
+	const tempWidth = ctx.measureText(currentTemp).width;
+	const maxMessageWidth = width - tempWidth - padding * 3;
+	let fontSize = 42;
+	ctx.font = `${fontSize}px Mania`;
+	while (fontSize > 24 && ctx.measureText(message).width > maxMessageWidth) {
+		fontSize -= 2;
+		ctx.font = `${fontSize}px Mania`;
+	}
+
+	const capHeight = ctx.measureText("H").actualBoundingBoxAscent;
+	const baseline = Math.round((height + capHeight) / 2);
 
 	ctx.fillText(message, padding, baseline);
-	const tempWidth = ctx.measureText(currentTemp).width;
-	ctx.fillText(currentTemp, width - padding - tempWidth, baseline);
+	if (fontSize !== 42) ctx.font = "42px Mania";
+	const tempBaseline = Math.round(
+		(height + ctx.measureText("H").actualBoundingBoxAscent) / 2,
+	);
+	ctx.fillText(currentTemp, width - padding - tempWidth, tempBaseline);
 
 	ctx.restore();
 }

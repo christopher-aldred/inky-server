@@ -1,14 +1,10 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import { createCanvas } from "@napi-rs/canvas";
+import type { NextApiRequest, NextApiResponse } from "next";
 import {
-	type HourlyEntry,
-	getWeatherIcon,
-	getWeatherDetails,
-	getWeatherForecast,
-	loadWeatherIcons,
-	NIGHT_ICON_TYPES,
-	weatherIcons,
-} from "../../utils/weather";
+	type AlertBannerStyle,
+	drawAlertBanner,
+} from "../../utils/alert-banner";
+import { formatKp, getAuroraAlert } from "../../utils/aurora";
 import { registerManiaFont } from "../../utils/canvas";
 import {
 	capitalize,
@@ -16,12 +12,23 @@ import {
 	getTemperatureColor,
 } from "../../utils/chart";
 import {
+	getWeatherDetails,
+	getWeatherForecast,
+	getWeatherIcon,
+	type HourlyEntry,
+	loadWeatherIcons,
+	NIGHT_ICON_TYPES,
+	weatherIcons,
+} from "../../utils/weather";
+import {
 	findSunTimesForDay,
 	formatLocalHour,
 	selectGraphHours,
 } from "../../utils/weather-time";
-import { formatKp, getAuroraAlert } from "../../utils/aurora";
-import { drawAlertBanner } from "../../utils/alert-banner";
+import {
+	formatWarningMessage,
+	getWeatherWarning,
+} from "../../utils/weather-warnings";
 
 // Register Mania font
 registerManiaFont();
@@ -36,8 +43,9 @@ export default async function handler(
 		// Load weather icons before proceeding (include moon for night)
 		await loadWeatherIcons(NIGHT_ICON_TYPES);
 
-		// Aurora alert is fetched alongside the weather; it never throws.
+		// Alerts are fetched alongside the weather; neither ever throws.
 		const auroraAlertPromise = getAuroraAlert();
+		const weatherWarningPromise = getWeatherWarning();
 
 		// Get current weather and hourly forecast
 		const { current, next24Hours, uvIndex, precipitation, timezone } =
@@ -76,8 +84,27 @@ export default async function handler(
 			hour12: false,
 		});
 		const formattedDateTimeStr = dateTimeFormatter.format(now);
-		const auroraAlert = await auroraAlertPromise;
-		if (!auroraAlert) {
+		// Header banner: an amber/red Met Office warning beats an aurora alert.
+		const [weatherWarning, auroraAlert] = await Promise.all([
+			weatherWarningPromise,
+			auroraAlertPromise,
+		]);
+		let banner: { message: string; style: AlertBannerStyle } | null = null;
+		if (weatherWarning) {
+			banner = {
+				message: formatWarningMessage(weatherWarning),
+				style: weatherWarning.level === "red" ? "solid" : "outline",
+			};
+		} else if (auroraAlert) {
+			banner = {
+				message:
+					auroraAlert.kp !== null
+						? `${auroraAlert.message} ${formatKp(auroraAlert.kp)}`
+						: auroraAlert.message,
+				style: "solid",
+			};
+		}
+		if (!banner) {
 			ctx.fillText(
 				`Weather ${location.split(",")[0]}, ${formattedDateTimeStr}`,
 				20,
@@ -113,16 +140,12 @@ export default async function handler(
 		const iconX = canvas.width - rightMargin - iconSize;
 
 		// Draw temperature and icon
-		if (auroraAlert) {
-			// Red bar replaces the title row (and holds the temperature)
-			const message =
-				auroraAlert.kp !== null
-					? `${auroraAlert.message} ${formatKp(auroraAlert.kp)}`
-					: auroraAlert.message;
+		if (banner) {
+			// The banner replaces the title row (and holds the temperature)
 			drawAlertBanner(
 				ctx,
-				message,
-				"solid",
+				banner.message,
+				banner.style,
 				currentTemp,
 				canvas.width,
 				rightMargin,
@@ -282,11 +305,7 @@ export default async function handler(
 
 			// Weather icons for forecast points
 			// Find the matching day's sunrise/sunset from daily forecast
-			const matchingDay = findSunTimesForDay(
-				dailyForecast,
-				data.dt,
-				timezone,
-			);
+			const matchingDay = findSunTimesForDay(dailyForecast, data.dt, timezone);
 
 			const weatherIcon = getWeatherIcon(data.weather[0].main, {
 				timestamp: data.dt,
