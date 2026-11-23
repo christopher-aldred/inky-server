@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { getCurvePoints, getTemperatureColor } from "../utils/chart.ts";
 import {
 	ditherDotOn,
+	insideStar,
 	nightDotDensity,
 	starPositions,
 } from "../utils/weather-screen/graph.ts";
@@ -265,4 +266,12 @@ test("night stars stay in the dark middle, clear of the line and labels", () => 
 	assert.deepEqual(starPositions([[100, 700]], lineY, [label]), stars);
 	// A short night has no dark middle, so no stars
 	assert.deepEqual(starPositions([[100, 200]], lineY, []), []);
+});
+
+test("stars are gaps shaped like a four-point twinkle", () => {
+	assert.ok(insideStar(0, 0));
+	assert.ok(insideStar(0, 18)); // along an arm
+	assert.ok(insideStar(-18, 0));
+	assert.ok(!insideStar(10, 10)); // between the arms
+	assert.ok(!insideStar(0, 30)); // past the tip
 });

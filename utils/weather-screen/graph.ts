@@ -113,6 +113,7 @@ function drawNightDots(
 	color: string,
 	fadeHours: number,
 	offset: number,
+	skip: (x: number, y: number) => boolean,
 ) {
 	const { dotSpacing: s, dotSize, shadeTop, axisY } = GRAPH;
 	const fadePx = (fadeHours / GRAPH.stepHours) * GRAPH.step;
@@ -128,20 +129,26 @@ function drawNightDots(
 			const col = Math.round((dx - offset - GRAPH.firstX) / s);
 			for (let dy = axisY - s - offset; dy >= shadeTop; dy -= s) {
 				const row = Math.round((axisY - offset - dy) / s);
-				if (!ditherDotOn(col, row, density)) continue;
+				if (!ditherDotOn(col, row, density) || skip(dx, dy)) continue;
 				ctx.fillRect(dx - dotSize / 2, dy - dotSize / 2, dotSize, dotSize);
 			}
 		}
 	}
 }
 
-/** Black dots for the whole night, plus a second black layer filling in the middle. */
+/**
+ * Black dots for the whole night, plus a second black layer filling in the
+ * middle. Dots inside a star are left out, so each star is a gap in the dots.
+ */
 function drawNightShading(
 	ctx: SKRSContext2D,
 	graph: Graph,
 	x: (t: number) => number,
+	stars: { x: number; y: number }[],
 ) {
-	drawNightDots(ctx, graph, x, COLORS.dots, GRAPH.nightFadeHours, 0);
+	const skip = (px: number, py: number) =>
+		stars.some((st) => insideStar(px - st.x, py - st.y));
+	drawNightDots(ctx, graph, x, COLORS.dots, GRAPH.nightFadeHours, 0, skip);
 	drawNightDots(
 		ctx,
 		graph,
@@ -149,7 +156,20 @@ function drawNightShading(
 		COLORS.deepNightDots,
 		GRAPH.deepNightFadeHours,
 		GRAPH.dotSpacing / 2,
+		skip,
 	);
+}
+
+/**
+ * Whether offset (dx, dy) from a star's centre falls inside it: two thin
+ * diamonds crossed, so a four-point twinkle whose arms taper from `waist`
+ * wide at the middle to a point at `radius`. Dots inside are left out.
+ */
+export function insideStar(dx: number, dy: number): boolean {
+	const { radius: r, waist: w } = GRAPH.stars;
+	const ax = Math.abs(dx);
+	const ay = Math.abs(dy);
+	return ax <= w * (1 - ay / r) || ay <= w * (1 - ax / r);
 }
 
 function drawMidnightDividers(
@@ -383,44 +403,7 @@ export function starPositions(
 	return stars;
 }
 
-/**
- * A four-point white star with a black edge and a thin white halo, so it
- * stands out from the dots around it.
- */
-function drawStar(ctx: SKRSContext2D, x: number, y: number) {
-	const r = GRAPH.stars.radius;
-	const waist = r * 0.3;
-	const path = () => {
-		ctx.beginPath();
-		ctx.moveTo(x, y - r);
-		ctx.lineTo(x + waist, y - waist);
-		ctx.lineTo(x + r, y);
-		ctx.lineTo(x + waist, y + waist);
-		ctx.lineTo(x, y + r);
-		ctx.lineTo(x - waist, y + waist);
-		ctx.lineTo(x - r, y);
-		ctx.lineTo(x - waist, y - waist);
-		ctx.closePath();
-	};
-	ctx.save();
-	ctx.lineJoin = "miter";
-	path();
-	ctx.strokeStyle = COLORS.white;
-	ctx.lineWidth = 6;
-	ctx.stroke();
-	ctx.strokeStyle = COLORS.black;
-	ctx.lineWidth = 2;
-	ctx.stroke();
-	ctx.fillStyle = COLORS.white;
-	ctx.fill();
-	ctx.restore();
-}
-
-function drawStars(
-	ctx: SKRSContext2D,
-	graph: Graph,
-	scale: ReturnType<typeof makeScale>,
-) {
+function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	const curve = temperatureCurve(graph, scale);
 	const lineY = (x: number) => {
 		let best = curve[0];
@@ -447,16 +430,19 @@ function drawStars(
 	const nights = graph.nights.map(
 		([a, b]) => [scale.x(a), scale.x(b)] as [number, number],
 	);
-	for (const { x, y } of starPositions(nights, lineY, avoid))
-		drawStar(ctx, x, y);
+	// Centre each star on a dot so its arms run along a dot row and column
+	const s = GRAPH.dotSpacing;
+	return starPositions(nights, lineY, avoid).map(({ x, y }) => ({
+		x: GRAPH.firstX + Math.round((x - GRAPH.firstX) / s) * s,
+		y: GRAPH.axisY - Math.round((GRAPH.axisY - y) / s) * s,
+	}));
 }
 
 /** Bottom half: night shading, day divider, temperature line, icons, labels. */
 export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	if (graph.points.length === 0) return;
 	const scale = makeScale(graph);
-	drawNightShading(ctx, graph, scale.x);
-	drawStars(ctx, graph, scale);
+	drawNightShading(ctx, graph, scale.x, nightStars(graph, scale));
 	drawMidnightDividers(ctx, graph, scale.x);
 	drawRule(ctx, GRAPH.axisY);
 	drawTemperatureLine(ctx, graph, scale);
