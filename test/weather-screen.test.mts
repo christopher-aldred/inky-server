@@ -13,6 +13,7 @@ import {
 	localMidnights,
 	nightRanges,
 	pickBanner,
+	summariseBlock,
 	sunOrUvRow,
 } from "../utils/weather-screen/model.ts";
 import { renderWeatherScreen } from "../utils/weather-screen/render.ts";
@@ -274,4 +275,38 @@ test("stars are gaps shaped like a four-point twinkle", () => {
 	assert.ok(insideStar(-14, 0));
 	assert.ok(!insideStar(10, 10)); // between the arms
 	assert.ok(!insideStar(0, 30)); // past the tip
+});
+
+test("each graph column sums up the hour before to the hour after", () => {
+	const hour = (weatherMain: string, precipitationProbability: number) => ({
+		dt: 0,
+		temp: 5,
+		weatherMain,
+		precipitation: 0,
+		precipitationProbability,
+	});
+	const hourly = [
+		hour("clear", 10),
+		hour("rain", 70), // between columns
+		hour("clouds", 20), // the column's own hour
+		hour("clear", 5),
+		hour("snow", 90), // outside the block
+	];
+	assert.deepEqual(summariseBlock(hourly, 2), {
+		weatherMain: "rain",
+		rainChance: 70,
+	});
+	// No wet weather nearby: the hour's own weather shows
+	assert.deepEqual(summariseBlock(hourly.slice(2, 4), 0), {
+		weatherMain: "clouds",
+		rainChance: 20,
+	});
+	// Thunder beats snow beats rain
+	assert.equal(
+		summariseBlock(
+			[hour("rain", 50), hour("thunderstorm", 40), hour("snow", 30)],
+			1,
+		).weatherMain,
+		"thunderstorm",
+	);
 });
