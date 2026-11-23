@@ -33,5 +33,8 @@
     "@types/react-dom": "latest",
     "vercel": "latest"
   },
-  "types": "types"
+  "types": "types",
+  "engines": {
+    "node": "22.x"
+  }
 }
