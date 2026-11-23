@@ -48,6 +48,18 @@ const lattice = {
 				half,
 		};
 	},
+	/** First box edge (just past a dot column) at or right of x. */
+	edgeAtOrAfterX: (x: number) => {
+		const half = GRAPH.dotSize / 2;
+		const s = GRAPH.dotSpacing;
+		return GRAPH.firstX + Math.ceil((x - half - GRAPH.firstX) / s) * s + half;
+	},
+	/** First box edge (just below a dot row) at or below y. */
+	edgeAtOrAfterY: (y: number) => {
+		const half = GRAPH.dotSize / 2;
+		const s = GRAPH.dotSpacing;
+		return GRAPH.axisY + Math.ceil((y - half - GRAPH.axisY) / s) * s + half;
+	},
 	/** Size that fits `len` plus padding and spans whole lattice cells. */
 	fit: (len: number, pad: number) =>
 		Math.ceil((len + pad * 2 + GRAPH.dotSize) / GRAPH.dotSpacing) *
@@ -79,8 +91,6 @@ function drawMidnightDividers(
 	graph: Graph,
 	x: (t: number) => number,
 ) {
-	ctx.font = GRAPH.labelFont;
-	ctx.textBaseline = "top";
 	for (const { time, label } of graph.midnights) {
 		const mx = x(time);
 		if (mx < 0 || mx > SCREEN.width) continue;
@@ -94,11 +104,11 @@ function drawMidnightDividers(
 		ctx.stroke();
 		ctx.setLineDash([]);
 
-		const w = ctx.measureText(label).width;
-		ctx.fillStyle = COLORS.white;
-		ctx.fillRect(mx + 4, GRAPH.shadeTop, w + 8, 24);
-		ctx.fillStyle = COLORS.black;
-		ctx.fillText(label, mx + 8, GRAPH.shadeTop + 2);
+		// Day label just right of the divider, at the top of the shading
+		drawLatticeLabel(ctx, label, COLORS.black, () => ({
+			x: lattice.edgeAtOrAfterX(mx + 2),
+			y: lattice.edgeAtOrAfterY(GRAPH.shadeTop),
+		}));
 	}
 }
 
@@ -159,11 +169,16 @@ function drawTemperatureLine(
 }
 
 /** Red label for the high and low, on a white box snapped to the dot lattice. */
-function drawHighLowLabel(
+/**
+ * Text on a white box whose edges sit halfway between dot columns/rows, so
+ * the gap from the text to the surrounding dots is even on every side.
+ * `place` picks the box's top-left from its size.
+ */
+function drawLatticeLabel(
 	ctx: SKRSContext2D,
 	text: string,
-	cx: number,
-	cy: number,
+	color: string,
+	place: (w: number, h: number) => { x: number; y: number },
 ) {
 	ctx.font = GRAPH.labelFont;
 	ctx.textBaseline = "alphabetic";
@@ -172,11 +187,11 @@ function drawHighLowLabel(
 	const inkH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
 	const w = lattice.fit(inkW, 4);
 	const h = lattice.fit(inkH, 4);
-	const box = lattice.boxOrigin(cx, cy, w, h);
+	const box = place(w, h);
 
 	ctx.fillStyle = COLORS.white;
 	ctx.fillRect(box.x, box.y, w, h);
-	ctx.fillStyle = COLORS.red;
+	ctx.fillStyle = color;
 	ctx.fillText(
 		text,
 		Math.round(box.x + (w - inkW) / 2 + m.actualBoundingBoxLeft),
@@ -211,11 +226,9 @@ function drawPointLabels(
 		centred(`${point.rainChance}%`, x, GRAPH.rainLabelY);
 
 		if (i === graph.highIndex || i === graph.lowIndex) {
-			drawHighLowLabel(
-				ctx,
-				`${Math.round(point.temp)}°C`,
-				x,
-				scale.y(point.temp) - 26,
+			const cy = scale.y(point.temp) - 26;
+			drawLatticeLabel(ctx, `${Math.round(point.temp)}°C`, COLORS.red, (w, h) =>
+				lattice.boxOrigin(x, cy, w, h),
 			);
 		}
 	});

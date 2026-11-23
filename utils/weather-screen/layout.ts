@@ -10,7 +10,7 @@ export const COLORS = {
 	black: "#000000",
 	white: "#FFFFFF",
 	grey: "#666666",
-	dots: "#AAAAAA",
+	dots: "#777777",
 } as const;
 
 export const HEADER = {
@@ -29,7 +29,7 @@ export const DETAILS = {
 	rightX: 345,
 } as const;
 
-const AXIS_Y = 404;
+const AXIS_Y = 412;
 const SMALL_ICON = 40;
 const FIRST_X = 40;
 const POINT_COUNT = 8;
