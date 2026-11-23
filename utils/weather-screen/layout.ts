@@ -10,7 +10,7 @@ export const COLORS = {
 	black: "#000000",
 	white: "#FFFFFF",
 	grey: "#666666",
-	dots: "#777777",
+	dots: "#444444",
 } as const;
 
 export const HEADER = {
@@ -54,6 +54,8 @@ export const GRAPH = {
 	/** y (top) of the small icons. */
 	iconY: AXIS_Y - SMALL_ICON - 10,
 	labelFont: "24px Mania",
+	/** High/low temperature labels: black, a step up from the other labels. */
+	highLowFont: "28px Mania",
 	timeLabelY: AXIS_Y + 8,
 	rainLabelY: AXIS_Y + 40,
 	/** Night-shading dot lattice spacing; dot columns land on firstX/lastX. */

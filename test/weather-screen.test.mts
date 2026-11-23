@@ -162,11 +162,14 @@ test("buildScreenModel: no 'before' edge when the data starts at now", () => {
 	assert.ok(model.graph.after);
 });
 
-test("getTemperatureColor blends between stops", () => {
-	assert.equal(getTemperatureColor(-10), "rgb(0,150,255)");
-	assert.equal(getTemperatureColor(5), "rgb(170,255,0)");
-	assert.equal(getTemperatureColor(10), "rgb(213,210,0)"); // halfway green→orange
-	assert.equal(getTemperatureColor(40), "rgb(231,76,60)");
+test("getTemperatureColor uses solid bands, no blending", () => {
+	assert.equal(getTemperatureColor(-10), "#0096FF");
+	assert.equal(getTemperatureColor(0), "#0096FF");
+	assert.equal(getTemperatureColor(0.5), "#AAFF00");
+	assert.equal(getTemperatureColor(10), "#AAFF00");
+	assert.equal(getTemperatureColor(15), "#FFA500");
+	assert.equal(getTemperatureColor(20), "#FFA500");
+	assert.equal(getTemperatureColor(40), "#E74C3C");
 });
 
 test("getCurvePoints passes through nodes and interpolates extra values", () => {
