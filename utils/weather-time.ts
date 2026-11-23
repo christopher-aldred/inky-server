@@ -75,7 +75,7 @@ export function selectGraphHours<T extends { dt: number }>(
 	entries: ReadonlyArray<T>,
 	nowSeconds: number,
 	pointCount = 8,
-	stepHours = 2,
+	stepHours = 3,
 ): T[] {
 	const start = findCurrentHourIndex(entries, nowSeconds);
 	const picked: T[] = [];
@@ -117,5 +117,24 @@ export function sumOverWindow<T extends { dt: number }>(
 		(total, entry) =>
 			entry.dt >= fromSeconds && entry.dt < end ? total + amount(entry) : total,
 		0,
+	);
+}
+
+/** Local "HH:MM" (24h) for a Unix time in seconds. */
+export function formatLocalTime(unixSeconds: number, timeZone: string): string {
+	return getFormatter(timeZone, {
+		hour: "2-digit",
+		minute: "2-digit",
+		hourCycle: "h23",
+	}).format(new Date(unixSeconds * 1000));
+}
+
+/** Local short weekday ("Mon".."Sun") for a Unix time in seconds. */
+export function formatLocalWeekday(
+	unixSeconds: number,
+	timeZone: string,
+): string {
+	return getFormatter(timeZone, { weekday: "short" }).format(
+		new Date(unixSeconds * 1000),
 	);
 }
