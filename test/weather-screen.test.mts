@@ -48,26 +48,26 @@ test("pickBanner: weather warning beats aurora; red solid, amber outline", () =>
 test("sunOrUvRow: next sunrise/sunset, UV only by day when 3+", () => {
 	const days = londonWeather().days;
 	assert.deepEqual(sunOrUvRow(at("2026-11-23T05:00:00Z"), days, TZ), {
-		label: "Sunrise: ",
+		label: "Sunrise ",
 		value: "07:38",
 	});
 	assert.deepEqual(sunOrUvRow(at("2026-11-23T11:50:00Z"), days, TZ), {
-		label: "Sunset: ",
+		label: "Sunset ",
 		value: "15:57",
 	});
 	assert.deepEqual(sunOrUvRow(at("2026-11-23T18:40:00Z"), days, TZ), {
-		label: "Sunrise: ",
+		label: "Sunrise ",
 		value: "07:38",
 	});
 	const sunny = days.map((d) => ({ ...d, uvMax: 5 }));
 	assert.deepEqual(sunOrUvRow(at("2026-11-23T11:50:00Z"), sunny, TZ), {
-		label: "UV Index: ",
+		label: "UV Index ",
 		value: "5.0",
 	});
 	// still shows sunrise at night, even on a high-UV day
 	assert.equal(
 		sunOrUvRow(at("2026-11-23T20:00:00Z"), sunny, TZ).label,
-		"Sunrise: ",
+		"Sunrise ",
 	);
 });
 
@@ -146,13 +146,13 @@ test("buildScreenModel: 8 points every 3h from 3h ago, edges, highlights", () =>
 	assert.equal(graph.points[3].icon, "moon"); // 00:00, clear
 	assert.equal(graph.points[6].icon, "clear"); // 09:00, after sunrise
 
-	assert.deepEqual(details.left[0], { label: "Wind: ", value: "14 km/h SW" });
+	assert.deepEqual(details.left[0], { label: "Wind ", value: "14 km/h SW" });
 	assert.deepEqual(details.left[1], {
-		label: "Gusts: ",
+		label: "Gusts ",
 		value: "63 km/h",
 		highlight: true,
 	});
-	assert.deepEqual(details.right[2], { label: "Sunrise: ", value: "07:38" });
+	assert.deepEqual(details.right[2], { label: "Sunrise ", value: "07:38" });
 });
 
 test("buildScreenModel: no 'before' edge when the data starts at now", () => {
