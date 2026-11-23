@@ -48,6 +48,9 @@ const lattice = {
 				half,
 		};
 	},
+	/** Left edge for a label just right of a 2px line at x, leaving a dot
+	 * column between them so the box's rounded corners show. */
+	edgeRightOfLine: (x: number) => lattice.edgeAtOrAfterX(x + 1 + GRAPH.dotSize),
 	/** First box edge (just past a dot column) at or right of x. */
 	edgeAtOrAfterX: (x: number) => {
 		const half = GRAPH.dotSize / 2;
@@ -202,7 +205,7 @@ function drawMidnightDividers(
 
 		// Day label just right of the divider, at the top of the shading
 		drawLatticeLabel(ctx, label, COLORS.black, () => ({
-			x: lattice.edgeAtOrAfterX(mx + 2),
+			x: lattice.edgeRightOfLine(mx),
 			y: lattice.edgeAtOrAfterY(GRAPH.shadeTop),
 		}));
 	}
@@ -310,9 +313,8 @@ function drawLatticeLabel(
 	);
 }
 
-/** Icons with loose drops or flakes get a white edge, so the drops stand
- * out from the night dots. */
-const HALO_ICONS = new Set(["rain", "thunderstorm", "snow"]);
+/** Every graph icon gets a white edge, so it stands out from the night
+ * dots. */
 const halos = new Map<string, Canvas>();
 
 /** White silhouette of an icon, grown by GRAPH.iconHalo px all round. */
@@ -355,11 +357,9 @@ function drawPointLabels(
 		const icon = weatherIcons[point.icon];
 		if (icon) {
 			const size = GRAPH.smallIcon;
-			if (HALO_ICONS.has(point.icon)) {
-				const halo = iconHalo(point.icon, icon, size);
-				const pad = GRAPH.iconHalo;
-				ctx.drawImage(halo, x - size / 2 - pad, GRAPH.iconY - pad);
-			}
+			const halo = iconHalo(point.icon, icon, size);
+			const pad = GRAPH.iconHalo;
+			ctx.drawImage(halo, x - size / 2 - pad, GRAPH.iconY - pad);
 			ctx.drawImage(icon, x - size / 2, GRAPH.iconY, size, size);
 		}
 
@@ -502,7 +502,7 @@ function labelBoxes(graph: Graph, scale: ReturnType<typeof makeScale>): Rect[] {
 	const boxes: Rect[] = [];
 	for (const { time } of graph.midnights) {
 		const mx = scale.x(time);
-		boxes.push({ x: mx - 2, y: GRAPH.shadeTop, w: 56, h: 30 });
+		boxes.push({ x: mx - 2, y: GRAPH.shadeTop, w: 62, h: 30 });
 	}
 	graph.points.forEach((p, i) => {
 		if (i !== graph.highIndex && i !== graph.lowIndex) return;
@@ -546,8 +546,8 @@ function drawNowLine(
 	const avoid = labelBoxes(graph, scale);
 	drawLatticeLabel(ctx, "Now", COLORS.black, (bw, bh) => {
 		let leftX = lattice.edgeAtOrAfterX(nx - 2 - bw - GRAPH.dotSpacing);
-		while (leftX + bw > nx - 2) leftX -= GRAPH.dotSpacing;
-		const rightX = lattice.edgeAtOrAfterX(nx + 2);
+		while (leftX + bw > nx - 1 - GRAPH.dotSize) leftX -= GRAPH.dotSpacing;
+		const rightX = lattice.edgeRightOfLine(nx);
 		const y1 = lattice.edgeAtOrAfterY(top);
 		// A row lower, for when a weekday label is right beside the line
 		const y2 = lattice.edgeAtOrAfterY(y1 + bh + 2);
