@@ -121,7 +121,7 @@ test("localMidnights finds the date change and labels the new day", () => {
 	);
 });
 
-test("buildScreenModel: 8 points every 3h from 3h ago, edges, highlights", () => {
+test("buildScreenModel: 8 points every 3h from the current hour, edges, highlights", () => {
 	const weather = londonWeather("2026-11-23T18:40:00Z");
 	const model = buildScreenModel(weather, {
 		location: "London,UK",
@@ -136,11 +136,12 @@ test("buildScreenModel: 8 points every 3h from 3h ago, edges, highlights", () =>
 
 	assert.deepEqual(
 		graph.points.map((p) => p.hourLabel),
-		// now is 18:40, so the graph starts at 15:00
-		["15", "18", "21", "00", "03", "06", "09", "12"],
+		// now is 18:40, so the graph starts at 18:00
+		["18", "21", "00", "03", "06", "09", "12", "15"],
 	);
-	assert.equal(graph.before?.time, at("2026-11-23T12:00:00Z"));
-	assert.equal(graph.after?.time, at("2026-11-24T15:00:00Z"));
+	assert.equal(graph.before?.time, at("2026-11-23T15:00:00Z"));
+	assert.equal(graph.after?.time, at("2026-11-24T18:00:00Z"));
+	assert.equal(graph.now, at("2026-11-23T18:40:00Z"));
 	assert.equal(graph.points[graph.lowIndex].temp, -1);
 	assert.equal(graph.points[graph.highIndex].temp, 12);
 	assert.deepEqual(
@@ -149,8 +150,8 @@ test("buildScreenModel: 8 points every 3h from 3h ago, edges, highlights", () =>
 	);
 
 	// icons agree with the night shading: moon only between sunset and sunrise
-	assert.equal(graph.points[3].icon, "moon"); // 00:00, clear
-	assert.equal(graph.points[6].icon, "clear"); // 09:00, after sunrise
+	assert.equal(graph.points[2].icon, "moon"); // 00:00, clear
+	assert.equal(graph.points[5].icon, "clear"); // 09:00, after sunrise
 
 	assert.deepEqual(details.left[0], { label: "Wind ", value: "14 km/h SW" });
 	assert.deepEqual(details.left[1], {
@@ -172,12 +173,12 @@ test("buildScreenModel: no 'before' edge when the data starts at now", () => {
 	assert.equal(model.graph.points[0].hourLabel, "00");
 });
 
-test("buildScreenModel: early morning starts as far back as the data goes", () => {
+test("buildScreenModel: early morning starts at the current hour", () => {
 	const model = buildScreenModel(londonWeather(), {
 		location: "London,UK",
 		now: at("2026-11-23T02:30:00Z"),
 	});
-	assert.equal(model.graph.points[0].hourLabel, "00");
+	assert.equal(model.graph.points[0].hourLabel, "02");
 	assert.equal(model.graph.points.length, 8);
 });
 

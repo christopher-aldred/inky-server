@@ -39,8 +39,9 @@ const POINT_COUNT = 8;
 export const GRAPH = {
 	pointCount: POINT_COUNT,
 	stepHours: 3,
-	/** The first graph point is this many hours before the current hour. */
-	pastHours: 3,
+	/** The first graph point is this many hours before the current hour (0: the
+	 * graph starts at the current hour, per Chris). */
+	pastHours: 0,
 	/** x of the first and last forecast points. */
 	firstX: FIRST_X,
 	lastX: SCREEN.width - FIRST_X,
