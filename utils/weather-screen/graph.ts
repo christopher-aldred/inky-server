@@ -105,46 +105,9 @@ export function ditherDotOn(
 }
 
 /**
- * Dot layer for the nights: `fadeHours` sets how long the dots take to build
- * up after sunset and thin out before sunrise; `offset` shifts the whole
- * layer (used to slot the deep-night layer between the black dots).
- */
-function drawNightDots(
-	ctx: SKRSContext2D,
-	graph: Graph,
-	x: (t: number) => number,
-	color: string,
-	fadeHours: number,
-	offset: number,
-	skip: (x: number, y: number) => boolean,
-) {
-	const { dotSpacing: s, dotSize, shadeTop, axisY } = GRAPH;
-	const fadePx = (fadeHours / GRAPH.stepHours) * GRAPH.step;
-	ctx.fillStyle = color;
-	for (const [start, end] of graph.nights) {
-		const nightFrom = x(start);
-		const nightTo = x(end);
-		const from = Math.max(0, nightFrom);
-		const to = Math.min(SCREEN.width, nightTo);
-		if (to <= from) continue;
-		for (let dx = lattice.snapX(from) + offset; dx <= to; dx += s) {
-			const density = nightDotDensity(dx, nightFrom, nightTo, fadePx);
-			const col = Math.round((dx - offset - GRAPH.firstX) / s);
-			// Lowest row that clears the axis line: the offset layer has one
-			// between the black layer's last row and the axis.
-			const firstY = offset > 0 ? axisY - offset : axisY - s;
-			for (let dy = firstY; dy >= shadeTop; dy -= s) {
-				const row = Math.round((axisY - offset - dy) / s);
-				if (!ditherDotOn(col, row, density) || skip(dx, dy)) continue;
-				ctx.fillRect(dx - dotSize / 2, dy - dotSize / 2, dotSize, dotSize);
-			}
-		}
-	}
-}
-
-/**
- * Black dots for the whole night, plus a second black layer filling in the
- * middle. Dots inside a star are left out, so each star is a gap in the dots.
+ * Night shading: a fine 1px ordered dither that builds from white at sunset
+ * to its darkest after `GRAPH.night.fadeHours`, and back before sunrise. The
+ * darkest is a touch off solid black (`maxDensity`). Stars are left white.
  */
 function drawNightShading(
 	ctx: SKRSContext2D,
@@ -152,24 +115,34 @@ function drawNightShading(
 	x: (t: number) => number,
 	stars: { x: number; y: number }[],
 ) {
-	const skip = (px: number, py: number) =>
-		stars.some((st) => insideStar(px - st.x, py - st.y));
-	drawNightDots(ctx, graph, x, COLORS.dots, GRAPH.nightFadeHours, 0, skip);
-	drawNightDots(
-		ctx,
-		graph,
-		x,
-		COLORS.deepNightDots,
-		GRAPH.deepNightFadeHours,
-		GRAPH.dotSpacing / 2,
-		skip,
-	);
+	const { fadeHours, maxDensity } = GRAPH.night;
+	const fadePx = (fadeHours / GRAPH.stepHours) * GRAPH.step;
+	const top = GRAPH.shadeTop;
+	const bottom = GRAPH.axisY - 1;
+	const r = GRAPH.stars.radius;
+	ctx.fillStyle = COLORS.black;
+	for (const [start, end] of graph.nights) {
+		const from = x(start);
+		const to = x(end);
+		const left = Math.max(0, Math.floor(from));
+		const right = Math.min(SCREEN.width, Math.ceil(to));
+		for (let px = left; px < right; px++) {
+			const density = nightDotDensity(px, from, to, fadePx) * maxDensity;
+			if (density <= 0) continue;
+			const near = stars.filter((st) => Math.abs(st.x - px) <= r);
+			for (let py = top; py < bottom; py++) {
+				if (!ditherDotOn(px, py, density)) continue;
+				if (near.some((st) => insideStar(px - st.x, py - st.y))) continue;
+				ctx.fillRect(px, py, 1, 1);
+			}
+		}
+	}
 }
 
 /**
  * Whether offset (dx, dy) from a star's centre falls inside it: two thin
  * diamonds crossed, so a four-point twinkle whose arms taper from `waist`
- * wide at the middle to a point at `radius`. Dots inside are left out.
+ * wide at the middle to a point at `radius`. Pixels inside stay white.
  */
 export function insideStar(dx: number, dy: number): boolean {
 	const { radius: r, waist: w } = GRAPH.stars;
@@ -196,12 +169,7 @@ function drawMidnightDividers(
 
 		ctx.strokeStyle = COLORS.black;
 		ctx.lineWidth = 2;
-		ctx.setLineDash([6, 6]);
-		ctx.beginPath();
-		ctx.moveTo(mx, GRAPH.shadeTop);
-		ctx.lineTo(mx, bottom);
-		ctx.stroke();
-		ctx.setLineDash([]);
+		dashedLine(ctx, mx, GRAPH.shadeTop, bottom);
 
 		// Day label just right of the divider, at the top of the shading
 		drawLatticeLabel(ctx, label, COLORS.black, () => ({
@@ -209,6 +177,26 @@ function drawMidnightDividers(
 			y: lattice.edgeAtOrAfterY(GRAPH.shadeTop),
 		}));
 	}
+}
+
+/** Vertical dashed line: black dashes with white ones in the gaps, so it
+ * shows on both the white day and the black night. */
+function dashedLine(ctx: SKRSContext2D, x: number, top: number, bottom: number) {
+	ctx.lineWidth = 2;
+	for (const [color, offset] of [
+		[COLORS.white, 6],
+		[COLORS.black, 0],
+	] as const) {
+		ctx.strokeStyle = color;
+		ctx.setLineDash([6, 6]);
+		ctx.lineDashOffset = offset;
+		ctx.beginPath();
+		ctx.moveTo(x, top);
+		ctx.lineTo(x, bottom);
+		ctx.stroke();
+	}
+	ctx.setLineDash([]);
+	ctx.lineDashOffset = 0;
 }
 
 /** Full-width rule at `y`, e.g. the x axis or the top edge of the graph. */
@@ -263,7 +251,7 @@ function drawTemperatureLine(
 	ctx.clip();
 	ctx.lineCap = "round";
 	ctx.lineJoin = "round";
-	// White outline first, so the line stands out on the dark night dots
+	// White outline first, so the line stands out on the dark night
 	ctx.lineWidth = GRAPH.lineWidth + 2 * GRAPH.lineOutline;
 	ctx.strokeStyle = COLORS.white;
 	ctx.beginPath();
@@ -441,7 +429,7 @@ function hash01(n: number): number {
 
 /**
  * Where the night stars go: spread through the darkest part of each night
- * (where the deep-night dots are dense), kept clear of the temperature line
+ * (where the shading is dark), kept clear of the temperature line
  * and of `avoid` boxes such as labels. Positions only depend on the night and
  * the line, so they stay put between refreshes.
  */
@@ -451,7 +439,7 @@ export function starPositions(
 	avoid: Rect[],
 ): { x: number; y: number }[] {
 	const { every, extra, minGap, minDensity, clearance, radius } = GRAPH.stars;
-	const deepFadePx = (GRAPH.deepNightFadeHours / GRAPH.stepHours) * GRAPH.step;
+	const deepFadePx = (GRAPH.night.fadeHours / GRAPH.stepHours) * GRAPH.step;
 	const top = GRAPH.shadeTop + radius + 6;
 	const bottom = GRAPH.iconY - radius - 6;
 	const clear = (x: number, y: number) =>
@@ -577,14 +565,7 @@ function drawNowLine(
 	const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
 	// Same look as the midnight divider: dashed black line, black label
 	const top = GRAPH.shadeTop;
-	ctx.strokeStyle = COLORS.black;
-	ctx.lineWidth = 2;
-	ctx.setLineDash([6, 6]);
-	ctx.beginPath();
-	ctx.moveTo(nx, top);
-	ctx.lineTo(nx, bottom);
-	ctx.stroke();
-	ctx.setLineDash([]);
+	dashedLine(ctx, nx, top, bottom);
 
 	const avoid = labelBoxes(graph, scale);
 	drawLatticeLabel(ctx, "Now", COLORS.black, (bw, bh) => {

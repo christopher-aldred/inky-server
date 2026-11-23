@@ -10,9 +10,6 @@ export const COLORS = {
 	black: "#000000",
 	white: "#FFFFFF",
 	grey: "#666666",
-	dots: "#000000",
-	/** Second, offset layer of night dots for the darkest hours. */
-	deepNightDots: "#000000",
 } as const;
 
 export const HEADER = {
@@ -62,11 +59,11 @@ export const GRAPH = {
 	humidity: {
 		color: "#0096FF",
 		width: 3,
-		outline: 4,
+		outline: 3,
 		dash: [] as number[],
 	},
 	/** White edge either side of the temperature line, in px. */
-	lineOutline: 5,
+	lineOutline: 3,
 	smallIcon: SMALL_ICON,
 	/** y (top) of the small icons. */
 	iconY: AXIS_Y - SMALL_ICON - 10,
@@ -77,37 +74,34 @@ export const GRAPH = {
 	 * the axis, the two rows and the bottom of the screen. */
 	timeLabelY: AXIS_Y + 14,
 	rainLabelY: AXIS_Y + 42,
-	/** Night-shading dot lattice spacing; dot columns land on firstX/lastX. */
+	/** Label-box lattice spacing (from the old dotted night shading); label
+	 * boxes and stars still snap to it. */
 	dotSpacing: 6,
-	/** Night dots fade in over this long after sunset and out before sunrise. */
-	nightFadeHours: 3.5,
-	/** A second layer of black dots, offset half a cell from the black ones,
-	 * darkens the middle of the night. It builds up over this long after
-	 * sunset and thins out before sunrise, so it's densest around the middle
-	 * and barely shows on short summer nights. */
-	deepNightFadeHours: 6,
+	/** Night shading: a 1px dither from white at sunset to `maxDensity`
+	 * black after `fadeHours`, and back before sunrise. */
+	night: { fadeHours: 3, maxDensity: 13 / 16 },
 	dotSize: 2,
 	/** Corner radius of the white boxes behind graph labels. */
 	labelRadius: 8,
 	/** White edge around drop/flake icons, in px. */
-	iconHalo: 6,
+	iconHalo: 3,
 	/** Red dot on the temperature line at the current time. */
 	nowDotRadius: 8,
 	/** Little white stars in the darkest part of each night. */
 	stars: {
 		/** Arm length from the centre, in px. */
-		radius: 15,
+		radius: 7,
 		/** Half-width of the arms where they meet in the middle, in px. */
-		waist: 4,
+		waist: 2,
 		/** Roughly one star per this many px of full-darkness night. */
-		every: 52,
+		every: 20,
 		/** Extra stars per night on top of that. */
-		extra: 2,
+		extra: 6,
 		/** Stars stay at least this far apart, centre to centre. */
-		minGap: 39,
-		/** Only where the deep-night dots are at least this dense. */
-		minDensity: 0.5,
+		minGap: 24,
+		/** Only where the night shading is at least this far through its fade. */
+		minDensity: 0.3,
 		/** Keep this far from the temperature line and labels. */
-		clearance: 14,
+		clearance: 8,
 	},
 } as const;

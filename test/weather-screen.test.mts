@@ -16,6 +16,7 @@ import {
 	summariseBlock,
 	sunOrUvRow,
 } from "../utils/weather-screen/model.ts";
+import { GRAPH } from "../utils/weather-screen/layout.ts";
 import { renderWeatherScreen } from "../utils/weather-screen/render.ts";
 import { londonWeather } from "./fixtures/london-weather.ts";
 
@@ -256,26 +257,29 @@ test("night stars stay in the dark middle, clear of the line and labels", () => 
 	assert.ok(stars.length >= 3);
 	for (const s of stars) {
 		assert.ok(s.x > 100 && s.x < 700);
-		assert.ok(Math.abs(s.y - 300) > 20);
+		// The star's tips stay off the line and out of the label
+		const { radius } = GRAPH.stars;
+		assert.ok(Math.abs(s.y - 300) > GRAPH.lineWidth / 2 + radius);
 		const inLabel =
-			s.x > label.x - 10 &&
-			s.x < label.x + label.w + 10 &&
-			s.y > label.y - 10 &&
-			s.y < label.y + label.h + 10;
+			s.x > label.x - radius &&
+			s.x < label.x + label.w + radius &&
+			s.y > label.y - radius &&
+			s.y < label.y + label.h + radius;
 		assert.ok(!inLabel);
 	}
 	// Same inputs, same stars (no flicker between refreshes)
 	assert.deepEqual(starPositions([[100, 700]], lineY, [label]), stars);
 	// A short night has no dark middle, so no stars
-	assert.deepEqual(starPositions([[100, 200]], lineY, []), []);
+	assert.deepEqual(starPositions([[100, 150]], lineY, []), []);
 });
 
-test("stars are gaps shaped like a four-point twinkle", () => {
+test("stars are white gaps shaped like a four-point twinkle", () => {
+	const { radius } = GRAPH.stars;
 	assert.ok(insideStar(0, 0));
-	assert.ok(insideStar(0, 14)); // along an arm
-	assert.ok(insideStar(-14, 0));
-	assert.ok(!insideStar(10, 10)); // between the arms
-	assert.ok(!insideStar(0, 30)); // past the tip
+	assert.ok(insideStar(0, radius - 1)); // along an arm
+	assert.ok(insideStar(-(radius - 1), 0));
+	assert.ok(!insideStar(radius / 2, radius / 2)); // between the arms
+	assert.ok(!insideStar(0, radius * 2)); // past the tip
 });
 
 test("each graph column sums up the hour before to the hour after", () => {
