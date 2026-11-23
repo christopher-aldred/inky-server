@@ -79,9 +79,9 @@ export const GRAPH = {
 	/** Little white stars in the darkest part of each night. */
 	stars: {
 		/** Arm length from the centre, in px. */
-		radius: 21,
+		radius: 18,
 		/** Half-width of the arms where they meet in the middle, in px. */
-		waist: 7,
+		waist: 6,
 		/** Roughly one star per this many px of full-darkness night. */
 		every: 52,
 		/** Only where the deep-night dots are at least this dense. */

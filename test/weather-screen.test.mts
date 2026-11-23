@@ -270,8 +270,8 @@ test("night stars stay in the dark middle, clear of the line and labels", () => 
 
 test("stars are gaps shaped like a four-point twinkle", () => {
 	assert.ok(insideStar(0, 0));
-	assert.ok(insideStar(0, 18)); // along an arm
-	assert.ok(insideStar(-18, 0));
+	assert.ok(insideStar(0, 14)); // along an arm
+	assert.ok(insideStar(-14, 0));
 	assert.ok(!insideStar(10, 10)); // between the arms
 	assert.ok(!insideStar(0, 30)); // past the tip
 });
