@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "./http";
+
 /**
  * Met Office National Severe Weather Warnings, from the free keyless RSS
  * feed for one region (default "se" = London & South East England).
@@ -100,11 +102,7 @@ export async function getWeatherWarning(
 	if (hit && now - hit.at < CACHE_MS) return hit.warning;
 
 	try {
-		const res = await fetch(warningsFeedUrl(region), {
-			signal: AbortSignal.timeout(5000),
-			headers: { "User-Agent": "inky-server (e-ink display)" },
-		});
-		if (!res.ok) throw new Error(`Met Office feed returned ${res.status}`);
+		const res = await fetchWithTimeout(warningsFeedUrl(region));
 		const warning = pickDisplayWarning(parseWarningsRss(await res.text()));
 		cache.set(region, { at: now, warning });
 		return warning;

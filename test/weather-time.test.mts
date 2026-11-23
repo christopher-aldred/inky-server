@@ -1,5 +1,5 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
 	findCurrentHourIndex,
 	findSunTimesForDay,
@@ -110,5 +110,18 @@ test("sun times are matched by local day across a 25-hour day", () => {
 test("precipitation window covers exactly 24 hours from the current hour", () => {
 	const day = hourly("2026-11-23T00:00:00Z", 48).map((e) => ({ ...e, mm: 1 }));
 	const from = at("2026-11-23T06:00:00Z");
-	assert.equal(sumOverWindow(day, from, 24, (e) => e.mm), 24);
+	assert.equal(
+		sumOverWindow(day, from, 24, (e) => e.mm),
+		24,
+	);
+});
+
+test("3-hour graph (the default) still has 8 points at 23:00", () => {
+	const day = hourly("2026-11-23T00:00:00Z", 48);
+	const points = selectGraphHours(day, at("2026-11-23T23:10:00Z"));
+	assert.equal(points.length, 8);
+	assert.deepEqual(
+		points.map((p) => formatLocalHour(p.dt, TZ)),
+		["23", "02", "05", "08", "11", "14", "17", "20"],
+	);
 });

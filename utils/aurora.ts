@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from "./http";
+
 /**
  * Aurora alert for the UK (tuned for London, ~51.5°N).
  *
@@ -129,15 +131,6 @@ export function assessAurora(
 export function formatKp(kp: number): string {
 	const rounded = Math.round(kp * 10) / 10;
 	return `Kp ${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}`;
-}
-
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
-	const res = await fetch(url, {
-		signal: AbortSignal.timeout(ms),
-		headers: { "User-Agent": "inky-server (e-ink display)" },
-	});
-	if (!res.ok) throw new Error(`${url} returned ${res.status}`);
-	return res;
 }
 
 const CACHE_MS = 15 * 60 * 1000;
