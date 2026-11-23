@@ -9,6 +9,12 @@ import type {
 	WeatherForecast,
 	GeocodingResult,
 } from "./weather.types";
+import {
+	DEFAULT_TIMEZONE,
+	findCurrentHourIndex,
+	findSunTimesForDay,
+	sumOverWindow,
+} from "./weather-time";
 
 export type {
 	HourlyEntry,
@@ -330,6 +336,8 @@ export async function getWeatherDetails(
 	}
 
 	const utcOffsetSeconds = response.utcOffsetSeconds();
+	const resolvedTimezone =
+		timezone || response.timezone() || DEFAULT_TIMEZONE;
 	const current = response.current();
 	const daily = response.daily();
 	const hourly = response.hourly();
@@ -385,19 +393,24 @@ export async function getWeatherDetails(
 		return Array.from({ length: len }, (_, i) => start + i * interval);
 	})();
 
+	const sunDays = dailySunrise.map((sunrise, i) => ({
+		sunrise,
+		sunset: dailySunset[i],
+	}));
+
+	// Hourly data starts at local midnight today. Keep 48 slots so the graph
+	// always has 16 hours ahead, even late in the evening.
 	const next24Hours: HourlyEntry[] = hourlyTimes.slice(0, 48).map((t, i) => {
-		const date = new Date((t + utcOffsetSeconds) * 1000);
-		const dailyStartTime = Number(daily?.time() ?? 0);
-		const dayIdx = dailyStartTime
-			? Math.floor((t - dailyStartTime) / 86400)
-			: 0;
-		const sunrise = dailySunrise?.[dayIdx];
-		const sunset = dailySunset?.[dayIdx];
+		// `t` is a real Unix time (UTC). Match it to its local day by calendar
+		// date, which stays right on 23- and 25-hour DST days.
+		const sunDay = findSunTimesForDay(sunDays, t, resolvedTimezone);
+		const sunrise = sunDay?.sunrise;
+		const sunset = sunDay?.sunset;
 		const weatherCode = Number(hourly?.variables(4)?.valuesArray()?.[i] ?? 0);
 
 		return {
 			dt: Number(t),
-			dt_txt: date.toISOString(),
+			dt_txt: new Date(t * 1000).toISOString(),
 			main: {
 				temp: Number(hourly?.variables(0)?.valuesArray()?.[i] ?? 0),
 				humidity: Number(hourly?.variables(7)?.valuesArray()?.[i] ?? 0),
@@ -409,6 +422,7 @@ export async function getWeatherDetails(
 				},
 			],
 			wind: { speed: Number(hourly?.variables(6)?.valuesArray()?.[i] ?? 0) },
+			precipitation: Number(hourly?.variables(1)?.valuesArray()?.[i] ?? 0),
 			rain: { "3h": Number(hourly?.variables(2)?.valuesArray()?.[i] ?? 0) },
 			snow: { "3h": Number(hourly?.variables(3)?.valuesArray()?.[i] ?? 0) },
 			sun: {
@@ -421,16 +435,20 @@ export async function getWeatherDetails(
 	const uvIndex =
 		dailyUvMax?.[0] ?? hourly?.variables(5)?.valuesArray?.()?.[0] ?? 0;
 
-	const precipitation = next24Hours.reduce((total, data) => {
-		return total + (data.rain?.["3h"] || 0) + (data.snow?.["3h"] || 0);
-	}, 0);
+	// Total precipitation (rain + showers + snow as water, in mm) over the next
+	// 24 hours, starting from the hour that contains now.
+	const nowSeconds = currentWeather.time ?? Math.floor(Date.now() / 1000);
+	const currentSlot = next24Hours[findCurrentHourIndex(next24Hours, nowSeconds)];
+	const precipitation = currentSlot
+		? sumOverWindow(next24Hours, currentSlot.dt, 24, (e) => e.precipitation ?? 0)
+		: 0;
 
 	return {
 		current: currentWeather,
 		next24Hours,
 		uvIndex: Number(uvIndex ?? 0),
 		precipitation,
-		timezone,
+		timezone: resolvedTimezone,
 		utcOffsetSeconds,
 	};
 }

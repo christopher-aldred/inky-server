@@ -15,6 +15,11 @@ import {
 	getCurvePoints,
 	getTemperatureColor,
 } from "../../utils/chart";
+import {
+	findSunTimesForDay,
+	formatLocalHour,
+	selectGraphHours,
+} from "../../utils/weather-time";
 
 // Register Mania font
 registerManiaFont();
@@ -30,7 +35,7 @@ export default async function handler(
 		await loadWeatherIcons(NIGHT_ICON_TYPES);
 
 		// Get current weather and hourly forecast
-		const { current, next24Hours, uvIndex, precipitation } =
+		const { current, next24Hours, uvIndex, precipitation, timezone } =
 			await getWeatherDetails(location);
 
 		// Get daily forecast with sunrise/sunset times
@@ -59,7 +64,7 @@ export default async function handler(
 		ctx.font = "42px Mania";
 		const now = new Date();
 		const dateTimeFormatter = new Intl.DateTimeFormat("en-UK", {
-			timeZone: "Europe/London",
+			timeZone: timezone,
 			weekday: "short",
 			hour: "2-digit",
 			minute: "2-digit",
@@ -163,24 +168,13 @@ export default async function handler(
 		const graphHeight = 200;
 		const graphBottom = graphHeight + graphMargin.top;
 
-		// Filter to show data starting from current hour
-		// API returns data starting from midnight, so we need to find current hour
-		const currentHour = now.getHours();
-
-		// Find the index in next24Hours that corresponds to the current hour
-		const currentHourIndex = next24Hours.findIndex((entry) => {
-			const entryDate = new Date(entry.dt * 1000);
-			return entryDate.getHours() === currentHour;
-		});
-
-		// If we can't find current hour, start from beginning
-		const startIndex = currentHourIndex >= 0 ? currentHourIndex : 0;
-
-		// Get 16 hours of data from current hour (every 2 hours = 8 points)
-		// We need indices: 0, 2, 4, 6, 8, 10, 12, 14 from the sliced array
-		const dataFromCurrentHour = next24Hours.slice(startIndex, startIndex + 16);
-		const filteredHours = dataFromCurrentHour.filter(
-			(_, index) => index % 2 === 0,
+		// 8 points, every 2 hours, starting from the hour that contains now.
+		// Matched by real timestamp, so the server's own timezone doesn't matter.
+		const filteredHours = selectGraphHours(
+			next24Hours,
+			Math.floor(now.getTime() / 1000),
+			8,
+			2,
 		);
 
 		// Find temperature range
@@ -221,8 +215,11 @@ export default async function handler(
 			const currentPoint = curvePoints[i];
 			const nextPoint = curvePoints[i + 1];
 
-			const progress = (currentPoint[1] - graphMargin.top) / graphHeight;
-			const temp = maxTemp - progress * tempRange;
+			// Invert the y mapping used for `points` (which leaves bottom padding)
+			const progress =
+				(currentPoint[1] - graphMargin.top) /
+				(graphHeight * (1 - bottomPaddingPercentage));
+			const temp = minTemp + (1 - progress) * tempRange;
 
 			ctx.beginPath();
 			ctx.strokeStyle = getTemperatureColor(temp);
@@ -244,12 +241,10 @@ export default async function handler(
 			);
 			const y = curvePoint ? curvePoint[1] : points[index][1];
 
-			// Time labels - use actual timestamp from forecast data
+			// Time labels: the location's local hour (handles GMT/BST)
 			ctx.fillStyle = "#000000";
 			ctx.font = "24px Mania";
-			const forecastDate = new Date(data.dt * 1000);
-			const displayHour = forecastDate.getHours();
-			const time = `${displayHour.toString().padStart(2, "0")}`;
+			const time = formatLocalHour(data.dt, timezone);
 			const timeWidth = ctx.measureText(time).width;
 			ctx.save();
 			ctx.translate(x - timeWidth / 2, graphBottom + 10);
@@ -263,14 +258,11 @@ export default async function handler(
 
 			// Weather icons for forecast points
 			// Find the matching day's sunrise/sunset from daily forecast
-			const matchingDay = dailyForecast.find((day) => {
-				const dayDate = new Date(day.date);
-				return (
-					dayDate.getFullYear() === forecastDate.getFullYear() &&
-					dayDate.getMonth() === forecastDate.getMonth() &&
-					dayDate.getDate() === forecastDate.getDate()
-				);
-			});
+			const matchingDay = findSunTimesForDay(
+				dailyForecast,
+				data.dt,
+				timezone,
+			);
 
 			const weatherIcon = getWeatherIcon(data.weather[0].main, {
 				timestamp: data.dt,
