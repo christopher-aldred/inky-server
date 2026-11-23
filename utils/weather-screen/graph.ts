@@ -135,7 +135,7 @@ function drawNightDots(
 	}
 }
 
-/** Black dots for the whole night, plus grey ones filling in the middle. */
+/** Black dots for the whole night, plus a second black layer filling in the middle. */
 function drawNightShading(
 	ctx: SKRSContext2D,
 	graph: Graph,
@@ -195,12 +195,8 @@ function drawRule(ctx: SKRSContext2D, y: number) {
 	ctx.stroke();
 }
 
-/** Smoothed temperature line, coloured by temperature band, edge to edge. */
-function drawTemperatureLine(
-	ctx: SKRSContext2D,
-	graph: Graph,
-	scale: ReturnType<typeof makeScale>,
-) {
+/** The smoothed temperature line as [x, y, temp] points, edge to edge. */
+function temperatureCurve(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	const { points } = graph;
 	const first = points[0];
 	const last = points[points.length - 1];
@@ -219,10 +215,19 @@ function drawTemperatureLine(
 		(p) =>
 			[scale.x(p.time), scale.y(p.temp), p.temp] as [number, number, number],
 	);
-	const curve = getCurvePoints(nodes).map(
+	return getCurvePoints(nodes).map(
 		([x, y, t]) =>
 			[x, Math.max(GRAPH.lineTop, Math.min(GRAPH.lineBottom, y)), t] as const,
 	);
+}
+
+/** Smoothed temperature line, coloured by temperature band, edge to edge. */
+function drawTemperatureLine(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	scale: ReturnType<typeof makeScale>,
+) {
+	const curve = temperatureCurve(graph, scale);
 
 	ctx.save();
 	ctx.beginPath();
@@ -312,11 +317,146 @@ function drawPointLabels(
 	});
 }
 
+type Rect = { x: number; y: number; w: number; h: number };
+
+/** Small deterministic hash → [0, 1), so stars don't move between refreshes. */
+function hash01(n: number): number {
+	let h = Math.imul(n ^ 0x9e3779b9, 0x85ebca6b);
+	h ^= h >>> 13;
+	h = Math.imul(h, 0xc2b2ae35);
+	h ^= h >>> 16;
+	return (h >>> 0) / 2 ** 32;
+}
+
+/**
+ * Where the night stars go: spread through the darkest part of each night
+ * (where the deep-night dots are dense), kept clear of the temperature line
+ * and of `avoid` boxes such as labels. Positions only depend on the night and
+ * the line, so they stay put between refreshes.
+ */
+export function starPositions(
+	nights: [number, number][],
+	lineY: (x: number) => number,
+	avoid: Rect[],
+): { x: number; y: number }[] {
+	const { every, minDensity, clearance, radius } = GRAPH.stars;
+	const deepFadePx = (GRAPH.deepNightFadeHours / GRAPH.stepHours) * GRAPH.step;
+	const top = GRAPH.shadeTop + radius + 6;
+	const bottom = GRAPH.iconY - radius - 6;
+	const clear = (x: number, y: number) =>
+		Math.abs(lineY(x) - y) > clearance + GRAPH.lineWidth / 2 + radius &&
+		avoid.every(
+			(r) =>
+				x < r.x - clearance ||
+				x > r.x + r.w + clearance ||
+				y < r.y - clearance ||
+				y > r.y + r.h + clearance,
+		);
+
+	const stars: { x: number; y: number }[] = [];
+	for (const [nightFrom, nightTo] of nights) {
+		const from = Math.max(radius + 4, nightFrom + minDensity * deepFadePx);
+		const to = Math.min(
+			SCREEN.width - radius - 4,
+			nightTo - minDensity * deepFadePx,
+		);
+		if (to - from < every / 2) continue;
+		const count = Math.max(1, Math.round((to - from) / every));
+		const slot = (to - from) / count;
+		for (let i = 0; i < count; i++) {
+			// Seed from the slot's place on screen so the pattern is stable
+			const seed = Math.round(from / slot) + i;
+			const x = Math.round(from + slot * (i + 0.3 + 0.4 * hash01(seed)));
+			// Try a few heights; take the first clear one
+			for (let k = 0; k < 6; k++) {
+				const y = Math.round(top + (bottom - top) * hash01(seed * 7 + k + 1));
+				const crowded = stars.some(
+					(st) => Math.hypot(st.x - x, st.y - y) < every * 0.75,
+				);
+				if (clear(x, y) && !crowded) {
+					stars.push({ x, y });
+					break;
+				}
+			}
+		}
+	}
+	return stars;
+}
+
+/**
+ * A four-point white star with a black edge and a thin white halo, so it
+ * stands out from the dots around it.
+ */
+function drawStar(ctx: SKRSContext2D, x: number, y: number) {
+	const r = GRAPH.stars.radius;
+	const waist = r * 0.3;
+	const path = () => {
+		ctx.beginPath();
+		ctx.moveTo(x, y - r);
+		ctx.lineTo(x + waist, y - waist);
+		ctx.lineTo(x + r, y);
+		ctx.lineTo(x + waist, y + waist);
+		ctx.lineTo(x, y + r);
+		ctx.lineTo(x - waist, y + waist);
+		ctx.lineTo(x - r, y);
+		ctx.lineTo(x - waist, y - waist);
+		ctx.closePath();
+	};
+	ctx.save();
+	ctx.lineJoin = "miter";
+	path();
+	ctx.strokeStyle = COLORS.white;
+	ctx.lineWidth = 6;
+	ctx.stroke();
+	ctx.strokeStyle = COLORS.black;
+	ctx.lineWidth = 2;
+	ctx.stroke();
+	ctx.fillStyle = COLORS.white;
+	ctx.fill();
+	ctx.restore();
+}
+
+function drawStars(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	scale: ReturnType<typeof makeScale>,
+) {
+	const curve = temperatureCurve(graph, scale);
+	const lineY = (x: number) => {
+		let best = curve[0];
+		for (const p of curve)
+			if (Math.abs(p[0] - x) < Math.abs(best[0] - x)) best = p;
+		return best[1];
+	};
+	const avoid: Rect[] = [];
+	for (const { time } of graph.midnights) {
+		// Divider plus the weekday label to its right
+		avoid.push({ x: scale.x(time) - 2, y: GRAPH.shadeTop, w: 56, h: 30 });
+		avoid.push({
+			x: scale.x(time) - 1,
+			y: GRAPH.shadeTop,
+			w: 2,
+			h: GRAPH.axisY,
+		});
+	}
+	graph.points.forEach((p, i) => {
+		if (i !== graph.highIndex && i !== graph.lowIndex) return;
+		const cy = scale.y(p.temp) - 26;
+		avoid.push({ x: scale.x(p.time) - 36, y: cy - 18, w: 72, h: 36 });
+	});
+	const nights = graph.nights.map(
+		([a, b]) => [scale.x(a), scale.x(b)] as [number, number],
+	);
+	for (const { x, y } of starPositions(nights, lineY, avoid))
+		drawStar(ctx, x, y);
+}
+
 /** Bottom half: night shading, day divider, temperature line, icons, labels. */
 export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	if (graph.points.length === 0) return;
 	const scale = makeScale(graph);
 	drawNightShading(ctx, graph, scale.x);
+	drawStars(ctx, graph, scale);
 	drawMidnightDividers(ctx, graph, scale.x);
 	drawRule(ctx, GRAPH.axisY);
 	drawTemperatureLine(ctx, graph, scale);
