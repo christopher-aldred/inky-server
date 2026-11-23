@@ -78,6 +78,8 @@ export const GRAPH = {
 	 * and barely shows on short summer nights. */
 	deepNightFadeHours: 6,
 	dotSize: 2,
+	/** Red dot on the temperature line at the current time. */
+	nowDotRadius: 6,
 	/** Little white stars in the darkest part of each night. */
 	stars: {
 		/** Arm length from the centre, in px. */
