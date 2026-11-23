@@ -67,19 +67,56 @@ const lattice = {
 		GRAPH.dotSize,
 };
 
+/** 4×4 ordered-dither thresholds (0–15), so a fade thins dots evenly. */
+const BAYER_4 = [
+	[0, 8, 2, 10],
+	[12, 4, 14, 6],
+	[3, 11, 1, 9],
+	[15, 7, 13, 5],
+] as const;
+
+/**
+ * How dense the night dots are at `px` (0 = none, 1 = full) inside a night
+ * spanning [fromPx, toPx]: they build up over `fadePx` after sunset and thin
+ * out over `fadePx` before sunrise. Open ends (±Infinity) don't fade.
+ */
+export function nightDotDensity(
+	px: number,
+	fromPx: number,
+	toPx: number,
+	fadePx: number,
+): number {
+	if (px < fromPx || px > toPx) return 0;
+	if (fadePx <= 0) return 1;
+	return Math.min(1, (px - fromPx) / fadePx, (toPx - px) / fadePx);
+}
+
+/** Whether the dot at lattice column/row `col`,`row` shows at `density`. */
+export function ditherDotOn(col: number, row: number, density: number): boolean {
+	const threshold = BAYER_4[((row % 4) + 4) % 4][((col % 4) + 4) % 4];
+	return density * 16 > threshold;
+}
+
 function drawNightShading(
 	ctx: SKRSContext2D,
 	graph: Graph,
 	x: (t: number) => number,
 ) {
 	const { dotSpacing: s, dotSize, shadeTop, axisY } = GRAPH;
+	const fadePx = (GRAPH.nightFadeHours / GRAPH.stepHours) * GRAPH.step;
 	ctx.fillStyle = COLORS.dots;
 	for (const [start, end] of graph.nights) {
-		const from = Math.max(0, x(start));
-		const to = Math.min(SCREEN.width, x(end));
+		const nightFrom = x(start);
+		const nightTo = x(end);
+		const from = Math.max(0, nightFrom);
+		const to = Math.min(SCREEN.width, nightTo);
 		if (to <= from) continue;
-		for (let dy = axisY - s; dy >= shadeTop; dy -= s) {
-			for (let dx = lattice.snapX(from); dx <= to; dx += s) {
+		for (let dx = lattice.snapX(from); dx <= to; dx += s) {
+			const density = nightDotDensity(dx, nightFrom, nightTo, fadePx);
+			const col = Math.round((dx - GRAPH.firstX) / s);
+			for (let dy = axisY - s; dy >= shadeTop; dy -= s) {
+				const row = Math.round((axisY - dy) / s);
+				if (!ditherDotOn(col, row, density)) continue;
 				ctx.fillRect(dx - dotSize / 2, dy - dotSize / 2, dotSize, dotSize);
 			}
 		}

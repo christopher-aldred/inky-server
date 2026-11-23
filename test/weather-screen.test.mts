@@ -9,6 +9,7 @@ import {
 	pickBanner,
 	sunOrUvRow,
 } from "../utils/weather-screen/model.ts";
+import { ditherDotOn, nightDotDensity } from "../utils/weather-screen/graph.ts";
 import { renderWeatherScreen } from "../utils/weather-screen/render.ts";
 import { londonWeather } from "./fixtures/london-weather.ts";
 
@@ -200,4 +201,30 @@ test("renderWeatherScreen produces a JPEG, with and without a banner", async () 
 		assert.equal(image[1], 0xd8);
 		assert.ok(image.length > 10_000);
 	}
+});
+
+test("night dots fade in after sunset and out before sunrise", () => {
+	// Night from x=100 to x=500, fading over 50px at each end
+	assert.equal(nightDotDensity(90, 100, 500, 50), 0);
+	assert.equal(nightDotDensity(100, 100, 500, 50), 0);
+	assert.equal(nightDotDensity(125, 100, 500, 50), 0.5);
+	assert.equal(nightDotDensity(300, 100, 500, 50), 1);
+	assert.equal(nightDotDensity(475, 100, 500, 50), 0.5);
+	// Open-ended nights (before the first sunrise) don't fade at the open end
+	assert.equal(nightDotDensity(0, -Infinity, 500, 50), 1);
+	assert.equal(nightDotDensity(700, 100, Infinity, 50), 1);
+});
+
+test("dither shows the right share of dots for a density", () => {
+	const share = (density: number) => {
+		let on = 0;
+		for (let col = 0; col < 4; col++)
+			for (let row = 0; row < 4; row++) if (ditherDotOn(col, row, density)) on++;
+		return on / 16;
+	};
+	assert.equal(share(0), 0);
+	assert.equal(share(0.25), 0.25);
+	assert.equal(share(0.5), 0.5);
+	assert.equal(share(1), 1);
+	assert.equal(ditherDotOn(-3, -7, 1), true); // negative indices are safe
 });

@@ -60,5 +60,7 @@ export const GRAPH = {
 	rainLabelY: AXIS_Y + 40,
 	/** Night-shading dot lattice spacing; dot columns land on firstX/lastX. */
 	dotSpacing: 6,
+	/** Night dots fade in over this long after sunset and out before sunrise. */
+	nightFadeHours: 2,
 	dotSize: 2,
 } as const;
