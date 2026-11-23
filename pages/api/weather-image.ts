@@ -4,13 +4,14 @@ import { getWeatherDetails } from "../../utils/weather";
 import { buildScreenModel } from "../../utils/weather-screen/model";
 import { renderWeatherScreen } from "../../utils/weather-screen/render";
 import { getWeatherWarning } from "../../utils/weather-warnings";
+import { firstQueryValue } from "../../utils/query";
 
 export default async function handler(
 	req: NextApiRequest,
 	res: NextApiResponse,
 ) {
 	try {
-		const location = (req.query.location as string) || "London,UK";
+		const location = firstQueryValue(req.query.location) || "London,UK";
 
 		// Alert sources never throw; a failure just means no banner.
 		const [weather, warning, aurora] = await Promise.all([

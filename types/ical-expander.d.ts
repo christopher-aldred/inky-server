@@ -2,6 +2,17 @@ declare module "ical-expander" {
   export interface ICalDateTime {
     toJSDate(): Date;
     isDate?: boolean;
+    year?: number;
+    month?: number;
+    day?: number;
+    hour?: number;
+    minute?: number;
+    second?: number;
+    zone?: { tzid?: string };
+  }
+
+  export interface ICalComponent {
+    getFirstPropertyValue?(name: string): unknown;
   }
 
   export interface IcalEvent {
@@ -11,6 +22,7 @@ declare module "ical-expander" {
     description?: string;
     location?: string;
     isAllDay?: boolean;
+    component?: ICalComponent;
   }
 
   export interface IcalOccurrence {

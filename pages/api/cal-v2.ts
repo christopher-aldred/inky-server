@@ -14,6 +14,8 @@ import {
 	processCalendarData,
 	groupEventsByDateFourColumn,
 } from "../../utils/calendar-processing";
+import { CALENDAR_TIMEZONE, dateKeyIn } from "../../utils/calendar-events";
+import { firstQueryValue, queryValues } from "../../utils/query";
 
 // Register Mania font
 registerManiaFont();
@@ -23,24 +25,24 @@ export default async function handler(
 	res: NextApiResponse,
 ) {
 	try {
-		const { location, url } = req.query;
+		const location = firstQueryValue(req.query.location);
+		const urls = queryValues(req.query.url);
 
-		let calendarData: CalendarData = {};
-
-		if (Array.isArray(url)) {
-			calendarData = await convertCalendarsToJSON(url);
-		} else if (typeof url === "string") {
-			calendarData = await convertCalendarsToJSON([url]);
-		}
+		const calendarData: CalendarData =
+			urls.length > 0 ? await convertCalendarsToJSON(urls) : {};
 
 		await loadWeatherIcons();
 
 		const [processedEvents, weatherForecast] = await Promise.all([
 			Promise.resolve(processCalendarData(calendarData)),
-			getWeatherForecast(location as string),
+			getWeatherForecast(location),
 		]);
 
-		const groupedEvents = groupEventsByDateFourColumn(processedEvents);
+		const now = new Date();
+		const groupedEvents = groupEventsByDateFourColumn(
+			processedEvents,
+			dateKeyIn(now.getTime(), CALENDAR_TIMEZONE),
+		);
 
 		const canvasWidth = 1200;
 		const canvasHeight = 1600;
@@ -107,11 +109,11 @@ export default async function handler(
 		ctx.font = "42px Mania";
 		ctx.fillText("Calendar events", 20, scaledYOffset + 50);
 
-		const now = new Date();
-		const dateStr = now.toLocaleDateString("en-UK", {
+		const dateStr = now.toLocaleDateString("en-GB", {
 			day: "numeric",
 			month: "short",
 			year: "numeric",
+			timeZone: CALENDAR_TIMEZONE,
 		});
 
 		ctx.font = "32px Mania";
@@ -192,6 +194,12 @@ export default async function handler(
 			dayIndex++;
 		}
 
+		if (groupedEvents.size === 0) {
+			ctx.font = "26px Mania";
+			ctx.fillStyle = "#666";
+			ctx.fillText("No upcoming events", 20, scaledYOffset + 130);
+		}
+
 		// Vertical dividers
 		ctx.strokeStyle = "#000";
 		for (let i = 1; i < totalColumns; i++) {
@@ -219,8 +227,10 @@ export default async function handler(
 			// Date label
 			ctx.font = "24px Mania";
 			ctx.fillStyle = "#666666";
-			const weatherDateStr = forecast.date.toLocaleDateString("en-UK", {
+			// forecast.date is shifted so its UTC date is the local date
+			const weatherDateStr = forecast.date.toLocaleDateString("en-GB", {
 				weekday: "short",
+				timeZone: "UTC",
 			});
 			ctx.fillText(weatherDateStr, x + 30, weatherStripY + 25);
 
@@ -249,12 +259,15 @@ export default async function handler(
 
 		const buffer = rotatedCanvas.toBuffer("image/jpeg");
 		res.setHeader("Content-Type", "image/jpeg");
+		res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+		res.setHeader("Pragma", "no-cache");
+		res.setHeader("Expires", "0");
 		res.send(buffer);
-		// biome-ignore lint/suspicious/noExplicitAny: Im lazy
-	} catch (error: any) {
+	} catch (error: unknown) {
+		console.error("Error:", error);
 		res.status(500).json({
 			error: "Failed to generate calendar image",
-			details: error.message,
+			details: error instanceof Error ? error.message : String(error),
 		});
 	}
 }
