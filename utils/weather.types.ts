@@ -47,6 +47,8 @@ export interface DetailedWeather {
 	precipitation: number;
 	/** IANA timezone of the location, e.g. "Europe/London". */
 	timezone: string;
+	/** Degrees north, for twilight length. London's if missing. */
+	latitude?: number;
 }
 
 /** Simplified daily forecast for the calendar screens' weather strip. */

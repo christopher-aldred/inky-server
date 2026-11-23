@@ -81,8 +81,11 @@ export const GRAPH = {
 	 * boxes and stars still snap to it. */
 	dotSpacing: 6,
 	/** Night shading: a 1px dither from white at sunset to `maxDensity`
-	 * black after `fadeHours`, and back before sunrise. */
-	night: { fadeHours: 3, maxDensity: 12 / 16 },
+	 * black, and back before sunrise. The fade follows the real twilight
+	 * (sunset to sun 18° down) stretched by `twilightScale`, so ~3h in late
+	 * November, ~4h in August, and around midsummer it never gets fully dark.
+	 * `fadeHours` is the fallback when no twilight length is known. */
+	night: { fadeHours: 3, twilightScale: 1.5, maxDensity: 12 / 16 },
 	dotSize: 2,
 	/** Corner radius of the white boxes behind graph labels. */
 	labelRadius: 8,

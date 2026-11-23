@@ -11,6 +11,7 @@ import {
 	buildScreenModel,
 	compassDirection,
 	localMidnights,
+	twilightHours,
 	nightRanges,
 	pickBanner,
 	summariseBlock,
@@ -221,6 +222,32 @@ test("renderWeatherScreen produces a JPEG, with and without a banner", async () 
 		assert.equal(image[1], 0xd8);
 		assert.ok(image.length > 10_000);
 	}
+});
+
+test("twilight is longer in summer than winter, like the UK's", () => {
+	const at = (d: string) => Date.parse(`${d}T20:00:00Z`) / 1000;
+	const nov = twilightHours(at("2026-11-23"), 51.5);
+	const mar = twilightHours(at("2026-03-20"), 51.5);
+	const aug = twilightHours(at("2026-08-01"), 51.5);
+	const jun = twilightHours(at("2026-06-21"), 51.5);
+	// Astronomical twilight in London: ~2h in late November, under 2h at the
+	// equinox, nearly 3h in early August
+	assert.ok(Math.abs(nov - 2) < 0.1, `nov ${nov}`);
+	assert.ok(mar < nov && mar > 1.7, `mar ${mar}`);
+	assert.ok(Math.abs(aug - 2.85) < 0.15, `aug ${aug}`);
+	// Midsummer never gets properly dark: the fade outlasts half the night
+	assert.ok(jun > 3.7, `jun ${jun}`);
+	// Further north, longer twilight
+	assert.ok(twilightHours(at("2026-11-23"), 57) > nov);
+});
+
+test("the screen model carries one twilight length per night", () => {
+	const model = buildScreenModel(londonWeather(), {
+		location: "London,UK",
+		now: londonWeather().current.time,
+	});
+	assert.equal(model.graph.twilightHours.length, model.graph.nights.length);
+	for (const h of model.graph.twilightHours) assert.ok(Math.abs(h - 2) < 0.1);
 });
 
 test("night dots fade in after sunset and out before sunrise", () => {

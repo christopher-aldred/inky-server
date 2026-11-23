@@ -428,5 +428,12 @@ export async function getWeatherDetails(
 		? sumOverWindow(hourly, currentSlot.dt, 24, (e) => e.precipitation)
 		: 0;
 
-	return { current, hourly, days, precipitation, timezone };
+	return {
+		current,
+		hourly,
+		days,
+		precipitation,
+		timezone,
+		latitude: response.latitude(),
+	};
 }
