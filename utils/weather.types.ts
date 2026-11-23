@@ -1,49 +1,53 @@
-/**
- * Represents an hourly weather entry with forecast data
- */
+/** One hour of forecast. All times are real Unix seconds (UTC). */
 export interface HourlyEntry {
-	/** Start of the hour, as a real Unix time in seconds (UTC). */
+	/** Start of the hour. */
 	dt: number;
-	/** `dt` as an ISO 8601 UTC string. */
-	dt_txt: string;
+	temp: number;
+	/** Icon family, e.g. "clear", "clouds", "rain" (see WEATHER_CODE_MAP). */
+	weatherMain: string;
 	/** Precipitation in mm for this hour (rain + showers + snow water). */
-	precipitation?: number;
-	main: { temp?: number; humidity?: number };
-	weather: Array<{ main: string; description: string }>;
-	wind: { speed?: number };
-	rain?: { "3h"?: number };
-	snow?: { "3h"?: number };
-	sun?: { sunrise?: number; sunset?: number };
+	precipitation: number;
+	/** Chance of precipitation this hour, 0-100. */
+	precipitationProbability: number;
 }
 
-/**
- * Represents current weather conditions
- */
+/** Conditions right now. */
 export interface CurrentWeather {
-	main: { temp?: number; humidity?: number; feels_like?: number };
-	wind: { speed?: number };
-	weather: Array<{ main: string; description: string }>;
-	sys: { sunrise?: number; sunset?: number };
-	time?: number;
+	time: number;
+	temp: number;
+	feelsLike: number;
+	humidity: number;
+	/** km/h (Open-Meteo's default unit, no conversion needed). */
+	windSpeed: number;
+	/** km/h */
+	windGust: number;
+	/** Degrees the wind is coming FROM, 0 = north. */
+	windDirection: number;
+	weatherMain: string;
+	description: string;
 }
 
-/**
- * Represents detailed weather information including current and forecast
- */
+/** Sun times and peak UV for one local day. */
+export interface SunDay {
+	sunrise: number;
+	sunset: number;
+	uvMax: number;
+}
+
+/** Everything the weather screen needs. */
 export interface DetailedWeather {
 	current: CurrentWeather;
-	next24Hours: HourlyEntry[];
-	uvIndex: number;
+	/** Hourly forecast from local midnight today, 48 hours. */
+	hourly: HourlyEntry[];
+	/** One entry per local day from today. */
+	days: SunDay[];
+	/** Total precipitation (mm) over the next 24 hours. */
 	precipitation: number;
 	/** IANA timezone of the location, e.g. "Europe/London". */
 	timezone: string;
-	/** Offset at fetch time only; do not use it to convert other timestamps. */
-	utcOffsetSeconds: number;
 }
 
-/**
- * Represents a simplified weather forecast for a specific date
- */
+/** Simplified daily forecast for the calendar screens' weather strip. */
 export interface WeatherForecast {
 	date: Date;
 	temp: number;
@@ -52,9 +56,6 @@ export interface WeatherForecast {
 	sunset?: number;
 }
 
-/**
- * Represents geocoding result from location lookup
- */
 export interface GeocodingResult {
 	latitude: number;
 	longitude: number;

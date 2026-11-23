@@ -1,41 +1,58 @@
-# Sheffield Weather Forecast Image Generator
+# Inky Server
 
-A TypeScript application that generates a dynamic weather forecast image for Sheffield, UK. The application uses the Open-Meteo API to fetch weather data and generates an 800x480 JPEG image showing the next 24 hours of weather conditions.
+Generates 800×480 images for an e-ink display: a weather screen (default London, UK) and calendar screens.
 
 ## Features
 
 - Dynamic image generation (800x480 JPEG)
-- 24-hour weather forecast for Sheffield
+- Weather forecast with Met Office and aurora alerts
 - Auto-refreshing forecast every 5 minutes
 - Serverless deployment on Netlify
 
 ## Weather Display Information
 
-### Current Weather (Top Section)
+### Header
 
-All values in the top section represent **current conditions** at the time of the request:
+- **Title**: location, day and time (red), with the current temperature on the right.
+- **Alert banner** replaces the title row when needed (temperature stays on the right):
+  - **Red Met Office warning**: solid red bar, e.g. "RED warning: Wind"
+  - **Amber Met Office warning**: white bar with a red border
+  - **Aurora**: solid red bar, e.g. "Aurora likely tonight! Kp 7"
 
-- **Temperature**: Current temperature in Celsius (large display, top right)
-- **Wind Speed**: Current wind speed in km/h (displayed in red if exceeds 60 km/h)
-- **Humidity**: Current relative humidity percentage
-- **Feels Like**: Current apparent temperature in Celsius (accounting for wind chill and humidity)
-- **Rain**: Total precipitation expected over the next 24 hours in millimeters
-- **UV Index**: Maximum UV index for the current day
-- **Weather Description**: Current weather condition (e.g., "Clear sky", "Light rain")
-- **Weather Icon**: Visual representation of current conditions (includes moon icon for clear nights)
+  A weather warning wins over an aurora alert; yellow warnings are ignored.
 
-### Forecast Graph (Bottom Section)
+### Current conditions
 
-The graph displays an **8-point forecast** covering the next 16 hours:
+| Left | Right |
+| --- | --- |
+| Wind speed (km/h) and compass direction | Rain expected over the next 24h (mm) |
+| Gusts (red above 60 km/h) | Humidity |
+| Feels like | Next sunrise/sunset, or UV by day when it's 3+ |
 
-- **X-axis**: Time labels starting from the current hour in 2-hour increments (e.g., if current time is 14:00, shows 14, 16, 18, 20, 22, 00, 02, 04)
-- **Temperature Curve**: Color-coded temperature trend
-  - Blue: ≤0°C
-  - Yellow-green: 1-10°C
-  - Orange: 11-20°C
-  - Red: >20°C
-- **Temperature Labels**: Forecasted temperature at each 2-hour interval
-- **Weather Icons**: Forecasted conditions at each time point (includes day/night variations)
+The big icon shows current conditions (moon on clear nights).
+
+### Forecast graph
+
+- 8 points, every **3 hours** from the current hour (about 21 hours).
+- Temperature line coloured by temperature, blending blue (≤ -2°C) → green (5°C) → orange (15°C) → red (24°C+), running edge to edge.
+- Only the **high and low** are labelled, in red.
+- **Night shading** (dots) from sunset to sunrise, and a dashed **midnight divider** labelled with the new day.
+- Icons, hour labels and **chance of rain** (red at 50%+) for each point.
+
+### Data sources (all free, no API key)
+
+- [Open-Meteo](https://open-meteo.com/) forecast
+- [Met Office warnings RSS](https://www.metoffice.gov.uk/weather/guides/rss), London & South East region
+- [AuroraWatch UK](https://aurorawatch.lancs.ac.uk/) status and [NOAA SWPC](https://www.swpc.noaa.gov/products/planetary-k-index) Kp forecast
+
+### Code layout
+
+- `pages/api/weather-image.ts`: fetches data and returns the JPEG
+- `utils/weather.ts`: Open-Meteo fetching and weather icons
+- `utils/weather-screen/model.ts`: decides what the screen shows (pure, unit tested)
+- `utils/weather-screen/render.ts`, `graph.ts`, `alert-banner.ts`: drawing
+- `utils/weather-screen/layout.ts`: all positions and colours
+- `utils/aurora.ts`, `utils/weather-warnings.ts`: alert sources
 
 ## Local Development
 
@@ -73,6 +90,6 @@ The weather forecast image is available at:
 ## Technology Stack
 
 - TypeScript
-- Node.js Canvas for image generation
+- @napi-rs/canvas for image generation
 - Netlify Functions (Next.js API Routes)
 - Open-Meteo API (free weather data, no API key required)

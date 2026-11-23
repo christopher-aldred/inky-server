@@ -1,59 +1,58 @@
 /**
- * Capitalize the first character of a string
+ * Smooth a polyline with a Catmull-Rom spline. Each point is a tuple whose
+ * first two entries are x and y; any further entries (e.g. temperature) are
+ * interpolated along with them, so values follow the curve exactly.
  */
-export function capitalize(s: string): string {
-	return String(s[0]).toUpperCase() + String(s).slice(1);
-}
-
-/**
- * Generate smooth curve points using Catmull-Rom spline interpolation
- * @param points Array of [x, y] coordinate pairs
- * @param tension Tension parameter (default 0.3)
- * @returns Array of interpolated curve points
- */
-export function getCurvePoints(
-	points: Array<[number, number]>,
-): Array<[number, number]> {
-	const res: Array<[number, number]> = [];
-
+export function getCurvePoints<P extends number[]>(
+	points: ReadonlyArray<P>,
+	samplesPerSegment = 100,
+): P[] {
+	const res: P[] = [];
 	for (let i = 0; i < points.length - 1; i++) {
-		const p0 = i > 0 ? points[i - 1] : points[i];
+		const p0 = points[Math.max(0, i - 1)];
 		const p1 = points[i];
 		const p2 = points[i + 1];
-		const p3 = i < points.length - 2 ? points[i + 2] : p2;
+		const p3 = points[Math.min(points.length - 1, i + 2)];
 
-		for (let t = 0; t <= 1; t += 0.01) {
+		for (let s = 0; s <= samplesPerSegment; s++) {
+			const t = s / samplesPerSegment;
 			const t2 = t * t;
 			const t3 = t2 * t;
-
-			const x =
-				0.5 *
-				(2 * p1[0] +
-					(-p0[0] + p2[0]) * t +
-					(2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 +
-					(-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
-
-			const y =
-				0.5 *
-				(2 * p1[1] +
-					(-p0[1] + p2[1]) * t +
-					(2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 +
-					(-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
-
-			res.push([x, y]);
+			res.push(
+				p1.map(
+					(_, k) =>
+						0.5 *
+						(2 * p1[k] +
+							(-p0[k] + p2[k]) * t +
+							(2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2 +
+							(-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3),
+				) as P,
+			);
 		}
 	}
 	return res;
 }
 
-/**
- * Get color based on temperature value
- * @param temp Temperature in Celsius
- * @returns Hex color string
- */
+/** Temperature colour stops (°C → RGB). Colours blend linearly between them. */
+const TEMPERATURE_STOPS: ReadonlyArray<[number, [number, number, number]]> = [
+	[-2, [0x00, 0x96, 0xff]], // blue: freezing
+	[5, [0xaa, 0xff, 0x00]], // yellow-green: cold
+	[15, [0xff, 0xa5, 0x00]], // orange: mild
+	[24, [0xe7, 0x4c, 0x3c]], // red: hot
+];
+
+/** Line colour for a temperature, blended smoothly between the stops. */
 export function getTemperatureColor(temp: number): string {
-	if (temp <= 0) return "#0096FF"; // Blue for freezing
-	if (temp <= 10) return "#AAFF00"; // Yellow-green for cold
-	if (temp <= 20) return "#FFA500"; // Orange for mild
-	return "#e74c3c"; // Red for hot
+	const stops = TEMPERATURE_STOPS;
+	const rgb = (c: readonly number[]) => `rgb(${c.join(",")})`;
+	if (temp <= stops[0][0]) return rgb(stops[0][1]);
+	for (let i = 0; i < stops.length - 1; i++) {
+		const [from, fromColor] = stops[i];
+		const [to, toColor] = stops[i + 1];
+		if (temp <= to) {
+			const f = (temp - from) / (to - from);
+			return rgb(fromColor.map((v, k) => Math.round(v + (toColor[k] - v) * f)));
+		}
+	}
+	return rgb(stops[stops.length - 1][1]);
 }

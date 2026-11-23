@@ -6,7 +6,7 @@
     "dev": "NODE_OPTIONS='--inspect' next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test test/*.test.mts"
+    "test": "node --import ./test/support/register.mjs --test test/*.test.mts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.65",
