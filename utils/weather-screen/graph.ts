@@ -149,12 +149,13 @@ function drawMidnightDividers(
 	}
 }
 
-function drawAxis(ctx: SKRSContext2D) {
+/** Full-width rule at `y`, e.g. the x axis or the top edge of the graph. */
+function drawRule(ctx: SKRSContext2D, y: number) {
 	ctx.strokeStyle = COLORS.black;
 	ctx.lineWidth = 2;
 	ctx.beginPath();
-	ctx.moveTo(0, GRAPH.axisY);
-	ctx.lineTo(SCREEN.width, GRAPH.axisY);
+	ctx.moveTo(0, y);
+	ctx.lineTo(SCREEN.width, y);
 	ctx.stroke();
 }
 
@@ -281,7 +282,9 @@ export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	const scale = makeScale(graph);
 	drawNightShading(ctx, graph, scale.x);
 	drawMidnightDividers(ctx, graph, scale.x);
-	drawAxis(ctx);
+	drawRule(ctx, GRAPH.axisY);
 	drawTemperatureLine(ctx, graph, scale);
 	drawPointLabels(ctx, graph, scale);
+	// Last, so no label box can cover it
+	drawRule(ctx, GRAPH.topRuleY);
 }
