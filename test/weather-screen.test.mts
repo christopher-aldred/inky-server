@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getCurvePoints, getTemperatureColor } from "../utils/chart.ts";
 import {
+	ditherDotOn,
+	insideStar,
+	nightDotDensity,
+	starPositions,
+} from "../utils/weather-screen/graph.ts";
+import {
 	buildScreenModel,
 	compassDirection,
 	localMidnights,
@@ -9,7 +15,6 @@ import {
 	pickBanner,
 	sunOrUvRow,
 } from "../utils/weather-screen/model.ts";
-import { ditherDotOn, nightDotDensity } from "../utils/weather-screen/graph.ts";
 import { renderWeatherScreen } from "../utils/weather-screen/render.ts";
 import { londonWeather } from "./fixtures/london-weather.ts";
 
@@ -231,7 +236,8 @@ test("dither shows the right share of dots for a density", () => {
 	const share = (density: number) => {
 		let on = 0;
 		for (let col = 0; col < 4; col++)
-			for (let row = 0; row < 4; row++) if (ditherDotOn(col, row, density)) on++;
+			for (let row = 0; row < 4; row++)
+				if (ditherDotOn(col, row, density)) on++;
 		return on / 16;
 	};
 	assert.equal(share(0), 0);
@@ -239,4 +245,33 @@ test("dither shows the right share of dots for a density", () => {
 	assert.equal(share(0.5), 0.5);
 	assert.equal(share(1), 1);
 	assert.equal(ditherDotOn(-3, -7, 1), true); // negative indices are safe
+});
+
+test("night stars stay in the dark middle, clear of the line and labels", () => {
+	const lineY = () => 300;
+	const label = { x: 380, y: 190, w: 60, h: 30 };
+	const stars = starPositions([[100, 700]], lineY, [label]);
+	assert.ok(stars.length >= 3);
+	for (const s of stars) {
+		assert.ok(s.x > 100 && s.x < 700);
+		assert.ok(Math.abs(s.y - 300) > 20);
+		const inLabel =
+			s.x > label.x - 10 &&
+			s.x < label.x + label.w + 10 &&
+			s.y > label.y - 10 &&
+			s.y < label.y + label.h + 10;
+		assert.ok(!inLabel);
+	}
+	// Same inputs, same stars (no flicker between refreshes)
+	assert.deepEqual(starPositions([[100, 700]], lineY, [label]), stars);
+	// A short night has no dark middle, so no stars
+	assert.deepEqual(starPositions([[100, 200]], lineY, []), []);
+});
+
+test("stars are gaps shaped like a four-point twinkle", () => {
+	assert.ok(insideStar(0, 0));
+	assert.ok(insideStar(0, 14)); // along an arm
+	assert.ok(insideStar(-14, 0));
+	assert.ok(!insideStar(10, 10)); // between the arms
+	assert.ok(!insideStar(0, 30)); // past the tip
 });

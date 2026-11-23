@@ -12,7 +12,7 @@ export const COLORS = {
 	grey: "#666666",
 	dots: "#000000",
 	/** Second, offset layer of night dots for the darkest hours. */
-	deepNightDots: "#777777",
+	deepNightDots: "#000000",
 } as const;
 
 export const HEADER = {
@@ -70,10 +70,23 @@ export const GRAPH = {
 	dotSpacing: 6,
 	/** Night dots fade in over this long after sunset and out before sunrise. */
 	nightFadeHours: 3.5,
-	/** A second layer of grey dots, offset half a cell from the black ones,
+	/** A second layer of black dots, offset half a cell from the black ones,
 	 * darkens the middle of the night. It builds up over this long after
 	 * sunset and thins out before sunrise, so it's densest around the middle
 	 * and barely shows on short summer nights. */
 	deepNightFadeHours: 6,
 	dotSize: 2,
+	/** Little white stars in the darkest part of each night. */
+	stars: {
+		/** Arm length from the centre, in px. */
+		radius: 18,
+		/** Half-width of the arms where they meet in the middle, in px. */
+		waist: 6,
+		/** Roughly one star per this many px of full-darkness night. */
+		every: 52,
+		/** Only where the deep-night dots are at least this dense. */
+		minDensity: 0.5,
+		/** Keep this far from the temperature line and labels. */
+		clearance: 14,
+	},
 } as const;
