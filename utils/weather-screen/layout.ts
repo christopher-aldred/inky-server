@@ -10,7 +10,7 @@ export const COLORS = {
 	black: "#000000",
 	white: "#FFFFFF",
 	grey: "#666666",
-	dots: "#444444",
+	dots: "#000000",
 } as const;
 
 export const HEADER = {
@@ -61,6 +61,6 @@ export const GRAPH = {
 	/** Night-shading dot lattice spacing; dot columns land on firstX/lastX. */
 	dotSpacing: 6,
 	/** Night dots fade in over this long after sunset and out before sunrise. */
-	nightFadeHours: 2,
+	nightFadeHours: 3.5,
 	dotSize: 2,
 } as const;
