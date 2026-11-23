@@ -117,7 +117,7 @@ function drawNightShading(
 ) {
 	const { fadeHours, maxDensity } = GRAPH.night;
 	const fadePx = (fadeHours / GRAPH.stepHours) * GRAPH.step;
-	const top = GRAPH.shadeTop;
+	const top = GRAPH.nightTop;
 	const bottom = GRAPH.axisY - 1;
 	const r = GRAPH.stars.radius;
 	ctx.fillStyle = COLORS.black;
@@ -169,7 +169,7 @@ function drawMidnightDividers(
 
 		ctx.strokeStyle = COLORS.black;
 		ctx.lineWidth = 2;
-		dashedLine(ctx, mx, GRAPH.shadeTop, bottom);
+		dashedLine(ctx, mx, GRAPH.nightTop, bottom);
 
 		// Day label just right of the divider, at the top of the shading
 		drawLatticeLabel(ctx, label, COLORS.black, () => ({
@@ -565,7 +565,7 @@ function drawNowLine(
 	const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
 	// Same look as the midnight divider: dashed black line, black label
 	const top = GRAPH.shadeTop;
-	dashedLine(ctx, nx, top, bottom);
+	dashedLine(ctx, nx, GRAPH.nightTop, bottom);
 
 	const avoid = labelBoxes(graph, scale);
 	drawLatticeLabel(ctx, "Now", COLORS.black, (bw, bh) => {
