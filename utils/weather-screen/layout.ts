@@ -86,6 +86,10 @@ export const GRAPH = {
 		waist: 4,
 		/** Roughly one star per this many px of full-darkness night. */
 		every: 52,
+		/** Extra stars per night on top of that. */
+		extra: 2,
+		/** Stars stay at least this far apart, centre to centre. */
+		minGap: 39,
 		/** Only where the deep-night dots are at least this dense. */
 		minDensity: 0.5,
 		/** Keep this far from the temperature line and labels. */

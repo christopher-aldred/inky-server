@@ -366,7 +366,7 @@ export function starPositions(
 	lineY: (x: number) => number,
 	avoid: Rect[],
 ): { x: number; y: number }[] {
-	const { every, minDensity, clearance, radius } = GRAPH.stars;
+	const { every, extra, minGap, minDensity, clearance, radius } = GRAPH.stars;
 	const deepFadePx = (GRAPH.deepNightFadeHours / GRAPH.stepHours) * GRAPH.step;
 	const top = GRAPH.shadeTop + radius + 6;
 	const bottom = GRAPH.iconY - radius - 6;
@@ -398,12 +398,25 @@ export function starPositions(
 			for (let k = 0; k < 6; k++) {
 				const y = Math.round(top + (bottom - top) * hash01(seed * 7 + k + 1));
 				const crowded = stars.some(
-					(st) => Math.hypot(st.x - x, st.y - y) < every * 0.75,
+					(st) => Math.hypot(st.x - x, st.y - y) < minGap,
 				);
 				if (clear(x, y) && !crowded) {
 					stars.push({ x, y });
 					break;
 				}
+			}
+		}
+		// A few extra stars anywhere in the dark part that has room
+		const seed0 = Math.round(from / slot) * 131;
+		for (let added = 0, k = 0; added < extra && k < 60; k++) {
+			const x = Math.round(from + (to - from) * hash01(seed0 + 2 * k));
+			const y = Math.round(top + (bottom - top) * hash01(seed0 + 2 * k + 1));
+			const crowded = stars.some(
+				(st) => Math.hypot(st.x - x, st.y - y) < minGap,
+			);
+			if (clear(x, y) && !crowded) {
+				stars.push({ x, y });
+				added++;
 			}
 		}
 	}
