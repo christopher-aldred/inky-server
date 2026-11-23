@@ -13,6 +13,8 @@ import {
 	processCalendarData,
 	groupEventsByDateTwoColumn,
 } from "../../utils/calendar-processing";
+import { CALENDAR_TIMEZONE } from "../../utils/calendar-events";
+import { firstQueryValue, queryValues } from "../../utils/query";
 
 // Register Mania font
 registerManiaFont();
@@ -25,18 +27,13 @@ export default async function handler(
 	console.log("Calendar image API request received");
 
 	try {
-		const { location, url } = req.query;
+		const location = firstQueryValue(req.query.location);
+		const urls = queryValues(req.query.url);
 
-		// Parse calendar data from query parameter
-		let calendarData: CalendarData = {};
-
-		if (Array.isArray(url)) {
-			calendarData = await convertCalendarsToJSON(url);
-			console.log(JSON.stringify(calendarData, null, 2));
-		} else if (typeof url === "string") {
-			calendarData = await convertCalendarsToJSON([url]);
-		}
-		console.log("Calendar data received:", calendarData);
+		// Parse calendar data from query parameter. (Don't log the events
+		// themselves: they're private and end up in the hosting logs.)
+		const calendarData: CalendarData =
+			urls.length > 0 ? await convertCalendarsToJSON(urls) : {};
 
 		// Load weather icons first
 		await loadWeatherIcons();
@@ -44,7 +41,7 @@ export default async function handler(
 		// Process calendar data and get weather forecast in parallel
 		const [processedEvents, weatherForecast] = await Promise.all([
 			Promise.resolve(processCalendarData(calendarData)),
-			getWeatherForecast(location as string),
+			getWeatherForecast(location),
 		]);
 
 		console.log("Processed events:", processedEvents.length);
@@ -67,10 +64,11 @@ export default async function handler(
 		ctx.fillText(headerText, 20, 50);
 
 		const now = new Date();
-		const dateStr = now.toLocaleDateString("en-UK", {
+		const dateStr = now.toLocaleDateString("en-GB", {
 			day: "numeric",
 			month: "short",
 			year: "numeric",
+			timeZone: CALENDAR_TIMEZONE,
 		});
 		ctx.font = "36px Mania";
 		ctx.fillStyle = "#666666";
@@ -104,7 +102,9 @@ export default async function handler(
 
 			// Draw events for this date
 			for (const event of events) {
-				if (yPosition > 420) break; // Prevent overflow
+				// Stop above the border line at y=410 (text is drawn up from its
+				// baseline, so a row at 420 would sit on top of the line).
+				if (yPosition > 400) break;
 
 				// Draw time only for non-all-day events
 				if (!event.isAllDay) {
@@ -166,8 +166,10 @@ export default async function handler(
 			// Draw date
 			ctx.font = "24px Mania";
 			ctx.fillStyle = "#666666";
-			const dateStr = forecast.date.toLocaleDateString("en-UK", {
+			// forecast.date is shifted so its UTC date is the local date
+			const dateStr = forecast.date.toLocaleDateString("en-GB", {
 				weekday: "short",
+				timeZone: "UTC",
 			});
 			ctx.fillText(dateStr, x + 30, weatherStripY + 25);
 
@@ -203,12 +205,11 @@ export default async function handler(
 		res.setHeader("Expires", "0");
 		res.send(buffer);
 	} catch (error: unknown) {
-		if (error instanceof Error) {
-			console.error("Error:", error);
-			res.status(500).json({
-				error: "Failed to generate calendar image",
-				details: error.message,
-			});
-		}
+		// Always answer: a non-Error throw used to leave the request hanging.
+		console.error("Error:", error);
+		res.status(500).json({
+			error: "Failed to generate calendar image",
+			details: error instanceof Error ? error.message : String(error),
+		});
 	}
 }

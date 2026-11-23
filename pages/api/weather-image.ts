@@ -20,6 +20,7 @@ import {
 	formatLocalHour,
 	selectGraphHours,
 } from "../../utils/weather-time";
+import { firstQueryValue } from "../../utils/query";
 
 // Register Mania font
 registerManiaFont();
@@ -29,7 +30,7 @@ export default async function handler(
 	res: NextApiResponse,
 ) {
 	try {
-		const location = (req.query.location as string) || "London,UK";
+		const location = firstQueryValue(req.query.location) || "London,UK";
 
 		// Load weather icons before proceeding (include moon for night)
 		await loadWeatherIcons(NIGHT_ICON_TYPES);
@@ -109,7 +110,8 @@ export default async function handler(
 		ctx.drawImage(weatherIcons[weatherIcon], iconX, 60, iconSize, iconSize);
 
 		ctx.font = "32px Mania";
-		const windSpeedKmh = Math.round((current.wind.speed ?? 0) * 3.6);
+		// Open-Meteo already returns wind_speed_10m in km/h (its default unit).
+		const windSpeedKmh = Math.round(current.wind.speed ?? 0);
 
 		// Wind Speed
 		ctx.fillStyle = "#666666";

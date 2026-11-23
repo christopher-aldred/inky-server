@@ -7,10 +7,13 @@ export type { ProcessedEvent };
  * Format a date string to a short format (e.g., "Mon 1")
  */
 export function formatDate(dateStr: string): string {
+	// "YYYY-MM-DD" parses as UTC midnight, so format it in UTC too. Formatting
+	// in the server's zone would show the previous day anywhere west of UTC.
 	const date = new Date(dateStr);
-	return date.toLocaleDateString("en-UK", {
+	return date.toLocaleDateString("en-GB", {
 		weekday: "short",
 		day: "numeric",
+		timeZone: "UTC",
 	});
 }
 
@@ -106,6 +109,8 @@ export function groupEventsByDateTwoColumn(
  */
 export function groupEventsByDateFourColumn(
 	events: ProcessedEvent[],
+	/** Today's local date ("YYYY-MM-DD") in the calendar's timezone. */
+	todayKey: string,
 ): Map<string, ProcessedEvent[]> {
 	const groupedByDate = new Map<string, ProcessedEvent[]>();
 
@@ -117,13 +122,12 @@ export function groupEventsByDateFourColumn(
 		]);
 	});
 
-	const today = new Date();
-	today.setHours(0, 0, 0, 0);
-
-	// Collect the earliest 4 upcoming event dates (inclusive of today)
+	// Collect the earliest 4 upcoming event dates (inclusive of today).
+	// "YYYY-MM-DD" keys sort correctly as strings, and "today" is the London
+	// date, not the server's (UTC) date.
 	const desiredDateKeys = Array.from(groupedByDate.keys())
-		.filter((dateKey) => new Date(dateKey).getTime() >= today.getTime())
-		.sort((a, b) => new Date(a).getTime() - new Date(b).getTime())
+		.filter((dateKey) => dateKey >= todayKey)
+		.sort()
 		.slice(0, 4);
 
 	const finalEvents = new Map<string, ProcessedEvent[]>();
