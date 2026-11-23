@@ -57,13 +57,13 @@ export const GRAPH = {
 	lineTop: 226,
 	lineBottom: AXIS_Y - SMALL_ICON - 10 - 14 - 4,
 	lineWidth: 8,
-	/** Thin dotted black humidity line drawn under the temperature line,
+	/** Thin solid blue humidity line drawn under the temperature line,
 	 * 0% at lineBottom to 100% at lineTop. */
 	humidity: {
-		color: "#000000",
+		color: "#0096FF",
 		width: 3,
 		outline: 2,
-		dash: [2, 5] as number[],
+		dash: [] as number[],
 	},
 	/** White edge either side of the temperature line, in px. */
 	lineOutline: 3,
