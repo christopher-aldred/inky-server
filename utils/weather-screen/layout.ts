@@ -56,6 +56,8 @@ export const GRAPH = {
 	lineTop: 226,
 	lineBottom: AXIS_Y - SMALL_ICON - 10 - 14 - 4,
 	lineWidth: 8,
+	/** White edge either side of the temperature line, in px. */
+	lineOutline: 3,
 	smallIcon: SMALL_ICON,
 	/** y (top) of the small icons. */
 	iconY: AXIS_Y - SMALL_ICON - 10,
@@ -79,9 +81,9 @@ export const GRAPH = {
 	/** Little white stars in the darkest part of each night. */
 	stars: {
 		/** Arm length from the centre, in px. */
-		radius: 18,
+		radius: 15,
 		/** Half-width of the arms where they meet in the middle, in px. */
-		waist: 6,
+		waist: 4,
 		/** Roughly one star per this many px of full-darkness night. */
 		every: 52,
 		/** Only where the deep-night dots are at least this dense. */

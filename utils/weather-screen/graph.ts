@@ -253,8 +253,15 @@ function drawTemperatureLine(
 	ctx.beginPath();
 	ctx.rect(0, 0, SCREEN.width, SCREEN.height);
 	ctx.clip();
-	ctx.lineWidth = GRAPH.lineWidth;
 	ctx.lineCap = "round";
+	ctx.lineJoin = "round";
+	// White outline first, so the line stands out on the dark night dots
+	ctx.lineWidth = GRAPH.lineWidth + 2 * GRAPH.lineOutline;
+	ctx.strokeStyle = COLORS.white;
+	ctx.beginPath();
+	curve.forEach(([x, y], i) => (i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)));
+	ctx.stroke();
+	ctx.lineWidth = GRAPH.lineWidth;
 	for (let i = 0; i < curve.length - 1; i++) {
 		const [x0, y0, t] = curve[i];
 		const [x1, y1] = curve[i + 1];
