@@ -367,6 +367,7 @@ export async function getWeatherDetails(
 		"precipitation",
 		"precipitation_probability",
 		"weather_code",
+		"relative_humidity_2m",
 	] as const;
 	const DAILY = ["sunrise", "sunset", "uv_index_max"] as const;
 
@@ -409,6 +410,7 @@ export async function getWeatherDetails(
 	const precip = h.series("precipitation");
 	const precipProb = h.series("precipitation_probability");
 	const codes = h.series("weather_code");
+	const humidity = h.series("relative_humidity_2m");
 	const start = Number(hourlyBlock?.time() ?? 0);
 	const interval = hourlyBlock?.interval() || 3600;
 	const hourly: HourlyEntry[] = temps.slice(0, 48).map((temp, i) => ({
@@ -417,6 +419,7 @@ export async function getWeatherDetails(
 		weatherMain: mapWeatherCodeToMain(codes[i]),
 		precipitation: precip[i] ?? 0,
 		precipitationProbability: precipProb[i] ?? 0,
+		humidity: humidity[i] ?? 0,
 	}));
 
 	// Total precipitation over the next 24 hours from the current hour.

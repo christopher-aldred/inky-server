@@ -46,6 +46,8 @@ export interface GraphPoint {
 	icon: string;
 	hourLabel: string;
 	rainChance: number;
+	/** Relative humidity at this hour, 0-100. */
+	humidity: number;
 }
 
 export interface ScreenModel {
@@ -57,8 +59,8 @@ export interface ScreenModel {
 	graph: {
 		points: GraphPoint[];
 		/** Forecast just outside the window, so the line runs to both edges. */
-		before: { time: number; temp: number } | null;
-		after: { time: number; temp: number } | null;
+		before: { time: number; temp: number; humidity: number } | null;
+		after: { time: number; temp: number; humidity: number } | null;
 		/** [start, end] Unix-second ranges of darkness (sunset to sunrise). */
 		nights: Array<[number, number]>;
 		/** Local midnights inside the window, labelled with the new day. */
@@ -254,13 +256,16 @@ export function buildScreenModel(
 			icon: iconAt(block.weatherMain, entry.dt, days, timezone),
 			hourLabel: formatLocalHour(entry.dt, timezone),
 			rainChance: block.rainChance,
+			humidity: entry.humidity,
 		};
 	});
 
 	const endIndex = startIndex + (picked.length - 1) * GRAPH.stepHours;
 	const edge = (index: number) => {
 		const entry = hourly[Math.max(0, Math.min(hourly.length - 1, index))];
-		return entry ? { time: entry.dt, temp: entry.temp } : null;
+		return entry
+			? { time: entry.dt, temp: entry.temp, humidity: entry.humidity }
+			: null;
 	};
 	const before = startIndex > 0 ? edge(startIndex - GRAPH.stepHours) : null;
 	const after =

@@ -285,6 +285,7 @@ test("each graph column sums up the hour before to the hour after", () => {
 		weatherMain,
 		precipitation: 0,
 		precipitationProbability,
+		humidity: 80,
 	});
 	const hourly = [
 		hour("clear", 10),

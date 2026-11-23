@@ -57,6 +57,15 @@ export const GRAPH = {
 	lineTop: 226,
 	lineBottom: AXIS_Y - SMALL_ICON - 10 - 14 - 4,
 	lineWidth: 8,
+	/** Thin humidity line drawn under the temperature line. */
+	humidity: {
+		show: true,
+		color: "#0096FF",
+		width: 3,
+		outline: 2,
+		dash: [] as number[],
+		label: "Humidity",
+	},
 	/** White edge either side of the temperature line, in px. */
 	lineOutline: 3,
 	smallIcon: SMALL_ICON,

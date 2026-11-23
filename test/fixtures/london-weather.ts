@@ -27,6 +27,8 @@ export function londonWeather(
 		weatherMain: rain[i] >= 50 ? "rain" : i % 7 === 0 ? "clouds" : "clear",
 		precipitation: rain[i] >= 50 ? 0.4 : 0,
 		precipitationProbability: rain[i],
+		// Damp at night and in the rain, drier in the afternoon
+		humidity: Math.min(98, 92 - 18 * Math.max(0, Math.sin(((i % 24) - 9) / 7 * Math.PI)) + rain[i] / 10),
 	}));
 	const day = (d: string, uvMax = 1) => ({
 		sunrise: at(`${d}T07:38:00Z`),

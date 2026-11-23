@@ -231,10 +231,12 @@ function temperatureCurve(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	const before = graph.before ?? {
 		time: first.time - stepSeconds,
 		temp: first.temp,
+		humidity: first.humidity,
 	};
 	const after = graph.after ?? {
 		time: last.time + stepSeconds,
 		temp: last.temp,
+		humidity: last.humidity,
 	};
 
 	const nodes = [before, ...points, after].map(
@@ -278,6 +280,54 @@ function drawTemperatureLine(
 		ctx.stroke();
 	}
 	ctx.restore();
+}
+
+/** Humidity as a thin line: 0% at the bottom of the line area, 100% at the top. */
+function drawHumidityLine(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	scale: ReturnType<typeof makeScale>,
+) {
+	const style = GRAPH.humidity;
+	const first = graph.points[0];
+	const last = graph.points[graph.points.length - 1];
+	const step = GRAPH.stepHours * 3600;
+	const before = graph.before ?? { time: first.time - step, humidity: first.humidity };
+	const after = graph.after ?? { time: last.time + step, humidity: last.humidity };
+	const y = (h: number) =>
+		GRAPH.lineBottom - (h / 100) * (GRAPH.lineBottom - GRAPH.lineTop);
+	const nodes = [before, ...graph.points, after].map(
+		(p) => [scale.x(p.time), y(p.humidity), p.humidity] as [number, number, number],
+	);
+	const curve = getCurvePoints(nodes);
+	const path = () => {
+		ctx.beginPath();
+		curve.forEach(([px, py], i) => (i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py)));
+	};
+
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(0, 0, SCREEN.width, SCREEN.height);
+	ctx.clip();
+	ctx.lineCap = "round";
+	ctx.lineJoin = "round";
+	ctx.setLineDash(style.dash);
+	ctx.lineWidth = style.width + 2 * style.outline;
+	ctx.strokeStyle = COLORS.white;
+	path();
+	ctx.stroke();
+	ctx.lineWidth = style.width;
+	ctx.strokeStyle = style.color;
+	path();
+	ctx.stroke();
+	ctx.restore();
+
+	// Label the line at its right-hand end
+	const lx = SCREEN.width - 8;
+	const ly = y(last.humidity);
+	drawLatticeLabel(ctx, style.label, style.color, (w, h) =>
+		lattice.boxOrigin(lx - w / 2, ly - h / 2 - 22, w, h),
+	);
 }
 
 /**
@@ -596,6 +646,7 @@ export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	drawMidnightDividers(ctx, graph, scale.x);
 	drawNowLine(ctx, graph, scale);
 	drawRule(ctx, GRAPH.axisY);
+	if (GRAPH.humidity.show) drawHumidityLine(ctx, graph, scale);
 	drawTemperatureLine(ctx, graph, scale);
 	drawNowDot(ctx, graph, scale);
 	drawPointLabels(ctx, graph, scale);
