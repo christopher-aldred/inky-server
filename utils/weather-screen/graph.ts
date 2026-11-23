@@ -127,7 +127,10 @@ function drawNightDots(
 		for (let dx = lattice.snapX(from) + offset; dx <= to; dx += s) {
 			const density = nightDotDensity(dx, nightFrom, nightTo, fadePx);
 			const col = Math.round((dx - offset - GRAPH.firstX) / s);
-			for (let dy = axisY - s - offset; dy >= shadeTop; dy -= s) {
+			// Lowest row that clears the axis line: the offset layer has one
+			// between the black layer's last row and the axis.
+			const firstY = offset > 0 ? axisY - offset : axisY - s;
+			for (let dy = firstY; dy >= shadeTop; dy -= s) {
 				const row = Math.round((axisY - offset - dy) / s);
 				if (!ditherDotOn(col, row, density) || skip(dx, dy)) continue;
 				ctx.fillRect(dx - dotSize / 2, dy - dotSize / 2, dotSize, dotSize);
@@ -310,8 +313,13 @@ function drawPointLabels(
 	graph: Graph,
 	scale: ReturnType<typeof makeScale>,
 ) {
-	const centred = (text: string, x: number, y: number) =>
-		ctx.fillText(text, x - ctx.measureText(text).width / 2, y);
+	// Centre on the ink, not the advance width, so labels line up with icons
+	const centred = (text: string, x: number, y: number) => {
+		const m = ctx.measureText(text);
+		const inkLeft = -m.actualBoundingBoxLeft;
+		const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+		ctx.fillText(text, Math.round(x - inkW / 2 - inkLeft), y);
+	};
 
 	graph.points.forEach((point, i) => {
 		const x = scale.x(point.time);
