@@ -1,4 +1,4 @@
-import { registerFont } from "canvas";
+import { GlobalFonts } from "@napi-rs/canvas";
 import path from "node:path";
 
 /**
@@ -7,5 +7,7 @@ import path from "node:path";
  */
 export function registerManiaFont(): void {
 	const fontPath = path.join(process.cwd(), "public", "fonts", "mania.ttf");
-	registerFont(fontPath, { family: "Mania" });
+	if (!GlobalFonts.has("Mania")) {
+		GlobalFonts.registerFromPath(fontPath, "Mania");
+	}
 }

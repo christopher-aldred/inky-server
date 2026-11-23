@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "NODE_OPTIONS='--inspect' next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "node --test test/*.test.mts"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.65",
     "axios": "^1.7.9",
-    "canvas": "3.0.0",
     "dav": "^1.8.0",
     "fast-xml-parser": "^4.5.1",
     "ical-expander": "^3.1.0",
@@ -32,5 +32,8 @@
     "@types/react-dom": "latest",
     "vercel": "latest"
   },
-  "types": "types"
+  "types": "types",
+  "engines": {
+    "node": "22.x"
+  }
 }

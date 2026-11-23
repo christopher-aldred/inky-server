@@ -2,8 +2,12 @@
  * Represents an hourly weather entry with forecast data
  */
 export interface HourlyEntry {
+	/** Start of the hour, as a real Unix time in seconds (UTC). */
 	dt: number;
+	/** `dt` as an ISO 8601 UTC string. */
 	dt_txt: string;
+	/** Precipitation in mm for this hour (rain + showers + snow water). */
+	precipitation?: number;
 	main: { temp?: number; humidity?: number };
 	weather: Array<{ main: string; description: string }>;
 	wind: { speed?: number };
@@ -31,7 +35,9 @@ export interface DetailedWeather {
 	next24Hours: HourlyEntry[];
 	uvIndex: number;
 	precipitation: number;
-	timezone?: string;
+	/** IANA timezone of the location, e.g. "Europe/London". */
+	timezone: string;
+	/** Offset at fetch time only; do not use it to convert other timestamps. */
 	utcOffsetSeconds: number;
 }
 

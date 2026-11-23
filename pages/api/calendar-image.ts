@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createCanvas } from "canvas";
+import { createCanvas } from "@napi-rs/canvas";
 import { convertCalendarsToJSON } from "../../utils/cal";
 import type { CalendarData } from "../../utils/cal.types";
 import {
