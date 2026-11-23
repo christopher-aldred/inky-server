@@ -60,8 +60,10 @@ export const GRAPH = {
 	labelFont: "24px Mania",
 	/** High/low temperature labels: black, a step up from the other labels. */
 	highLowFont: "28px Mania",
-	timeLabelY: AXIS_Y + 8,
-	rainLabelY: AXIS_Y + 40,
+	/** Hour and rain-chance rows: their ink sits with equal 11px gaps between
+	 * the axis, the two rows and the bottom of the screen. */
+	timeLabelY: AXIS_Y + 14,
+	rainLabelY: AXIS_Y + 42,
 	/** Night-shading dot lattice spacing; dot columns land on firstX/lastX. */
 	dotSpacing: 6,
 	/** Night dots fade in over this long after sunset and out before sunrise. */
