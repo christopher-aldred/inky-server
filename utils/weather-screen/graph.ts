@@ -121,7 +121,7 @@ function drawAxis(ctx: SKRSContext2D) {
 	ctx.stroke();
 }
 
-/** Smoothed temperature line, colour blended by temperature, edge to edge. */
+/** Smoothed temperature line, coloured by temperature band, edge to edge. */
 function drawTemperatureLine(
 	ctx: SKRSContext2D,
 	graph: Graph,
@@ -168,7 +168,6 @@ function drawTemperatureLine(
 	ctx.restore();
 }
 
-/** Red label for the high and low, on a white box snapped to the dot lattice. */
 /**
  * Text on a white box whose edges sit halfway between dot columns/rows, so
  * the gap from the text to the surrounding dots is even on every side.
@@ -179,8 +178,9 @@ function drawLatticeLabel(
 	text: string,
 	color: string,
 	place: (w: number, h: number) => { x: number; y: number },
+	font: string = GRAPH.labelFont,
 ) {
-	ctx.font = GRAPH.labelFont;
+	ctx.font = font;
 	ctx.textBaseline = "alphabetic";
 	const m = ctx.measureText(text);
 	const inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
@@ -227,8 +227,12 @@ function drawPointLabels(
 
 		if (i === graph.highIndex || i === graph.lowIndex) {
 			const cy = scale.y(point.temp) - 26;
-			drawLatticeLabel(ctx, `${Math.round(point.temp)}°C`, COLORS.red, (w, h) =>
-				lattice.boxOrigin(x, cy, w, h),
+			drawLatticeLabel(
+				ctx,
+				`${Math.round(point.temp)}°C`,
+				COLORS.black,
+				(w, h) => lattice.boxOrigin(x, cy, w, h),
+				GRAPH.highLowFont,
 			);
 		}
 	});

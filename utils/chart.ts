@@ -33,26 +33,13 @@ export function getCurvePoints<P extends number[]>(
 	return res;
 }
 
-/** Temperature colour stops (°C → RGB). Colours blend linearly between them. */
-const TEMPERATURE_STOPS: ReadonlyArray<[number, [number, number, number]]> = [
-	[-2, [0x00, 0x96, 0xff]], // blue: freezing
-	[5, [0xaa, 0xff, 0x00]], // yellow-green: cold
-	[15, [0xff, 0xa5, 0x00]], // orange: mild
-	[24, [0xe7, 0x4c, 0x3c]], // red: hot
-];
-
-/** Line colour for a temperature, blended smoothly between the stops. */
+/**
+ * Line colour for a temperature: one solid colour per band, no blending
+ * (Chris preferred the original banded look).
+ */
 export function getTemperatureColor(temp: number): string {
-	const stops = TEMPERATURE_STOPS;
-	const rgb = (c: readonly number[]) => `rgb(${c.join(",")})`;
-	if (temp <= stops[0][0]) return rgb(stops[0][1]);
-	for (let i = 0; i < stops.length - 1; i++) {
-		const [from, fromColor] = stops[i];
-		const [to, toColor] = stops[i + 1];
-		if (temp <= to) {
-			const f = (temp - from) / (to - from);
-			return rgb(fromColor.map((v, k) => Math.round(v + (toColor[k] - v) * f)));
-		}
-	}
-	return rgb(stops[stops.length - 1][1]);
+	if (temp <= 0) return "#0096FF"; // blue: freezing
+	if (temp <= 10) return "#AAFF00"; // yellow-green: cold
+	if (temp <= 20) return "#FFA500"; // orange: mild
+	return "#E74C3C"; // red: hot
 }
