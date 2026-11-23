@@ -466,14 +466,71 @@ function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	}));
 }
 
+/**
+ * Marker at the current time: a vertical line with a white edge so it reads
+ * on the night dots, stopping short of any icon, plus a dot on the
+ * temperature line. Mockup styles via NOW_STYLE (1–3) while choosing.
+ */
+function drawNowMarker(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	scale: ReturnType<typeof makeScale>,
+) {
+	const style = Number(process.env.NOW_STYLE ?? 1);
+	const nx = Math.round(scale.x(graph.now));
+	if (nx < 0 || nx > SCREEN.width) return;
+	const hitsIcon = graph.points.some(
+		(p) => Math.abs(scale.x(p.time) - nx) < GRAPH.smallIcon / 2 + 4,
+	);
+	const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
+	const color = style === 2 ? COLORS.black : COLORS.red;
+	const width = style === 2 ? 3 : 2;
+
+	ctx.fillStyle = COLORS.white;
+	ctx.fillRect(nx - width / 2 - 2, GRAPH.shadeTop, width + 4, bottom - GRAPH.shadeTop);
+	ctx.fillStyle = color;
+	ctx.fillRect(nx - width / 2, GRAPH.shadeTop, width, bottom - GRAPH.shadeTop);
+
+	if (style === 1 || style === 3) {
+		drawLatticeLabel(ctx, "Now", COLORS.red, () => ({
+			x: lattice.edgeAtOrAfterX(nx + 2),
+			y: lattice.edgeAtOrAfterY(GRAPH.shadeTop),
+		}));
+	}
+}
+
+/** Dot on the temperature line at the current time (drawn over the line). */
+function drawNowDot(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	scale: ReturnType<typeof makeScale>,
+) {
+	const style = Number(process.env.NOW_STYLE ?? 1);
+	if (style === 1) return;
+	const nx = scale.x(graph.now);
+	const curve = temperatureCurve(graph, scale);
+	let best = curve[0];
+	for (const p of curve) if (Math.abs(p[0] - nx) < Math.abs(best[0] - nx)) best = p;
+	ctx.beginPath();
+	ctx.arc(nx, best[1], 9, 0, Math.PI * 2);
+	ctx.fillStyle = COLORS.white;
+	ctx.fill();
+	ctx.beginPath();
+	ctx.arc(nx, best[1], 6, 0, Math.PI * 2);
+	ctx.fillStyle = style === 2 ? COLORS.red : COLORS.red;
+	ctx.fill();
+}
+
 /** Bottom half: night shading, day divider, temperature line, icons, labels. */
 export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	if (graph.points.length === 0) return;
 	const scale = makeScale(graph);
 	drawNightShading(ctx, graph, scale.x, nightStars(graph, scale));
 	drawMidnightDividers(ctx, graph, scale.x);
+	drawNowMarker(ctx, graph, scale);
 	drawRule(ctx, GRAPH.axisY);
 	drawTemperatureLine(ctx, graph, scale);
+	drawNowDot(ctx, graph, scale);
 	drawPointLabels(ctx, graph, scale);
 	// Last, so no label box can cover it
 	drawRule(ctx, GRAPH.topRuleY);

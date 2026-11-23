@@ -65,6 +65,8 @@ export interface ScreenModel {
 		midnights: Array<{ time: number; label: string }>;
 		highIndex: number;
 		lowIndex: number;
+		/** The current time, for the "now" marker. */
+		now: number;
 	};
 }
 
@@ -305,6 +307,7 @@ export function buildScreenModel(
 			),
 			highIndex: temps.indexOf(Math.max(...temps)),
 			lowIndex: temps.indexOf(Math.min(...temps)),
+			now,
 		},
 	};
 }
