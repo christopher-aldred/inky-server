@@ -145,12 +145,13 @@ const LONDON_LATITUDE = 51.5;
 const RAD = Math.PI / 180;
 /** Sun altitude at sunset/sunrise as Open-Meteo defines them (refraction). */
 const SUNSET_ALTITUDE = -0.833;
-/** End of astronomical twilight: properly dark. */
-const DARK_ALTITUDE = -18;
+/** End of nautical twilight: as dark as it looks to people, even in a city
+ * (astronomical twilight, -18°, ran on well past when it looked pitch black). */
+const DARK_ALTITUDE = -12;
 
 /**
- * Hours from sunset until it's properly dark (sun 18° down) on the day of
- * `time`, at `latitude`. Around midsummer in the UK the sun never gets that
+ * Hours from sunset until it looks dark (sun 12° down) on the day of
+ * `time`, at `latitude`. Around midsummer in the UK the sun may never get that
  * low, so this extrapolates from how deep it does get by solar midnight:
  * longer than half the night, so the darkest part stays lighter.
  */

@@ -104,12 +104,10 @@ export function ditherDotOn(
 	return density * 16 > threshold;
 }
 
-/** How many pixels night `i` takes to fade in (and out), from its real
- * twilight length stretched by `GRAPH.night.twilightScale`. */
+/** How many pixels night `i` takes to fade in (and out): its real
+ * twilight length. */
 function nightFadePx(graph: Graph, i: number): number {
-	const { fadeHours, twilightScale } = GRAPH.night;
-	const twilight = graph.twilightHours?.[i];
-	const hours = twilight === undefined ? fadeHours : twilight * twilightScale;
+	const hours = graph.twilightHours?.[i] ?? GRAPH.night.fadeHours;
 	return (hours / GRAPH.stepHours) * GRAPH.step;
 }
 
