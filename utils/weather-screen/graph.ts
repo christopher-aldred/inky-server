@@ -541,7 +541,7 @@ function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	}));
 }
 
-/** Boxes that the "Now" label and stars keep clear of: each midnight's
+/** Boxes that the now label and stars keep clear of: each midnight's
  * divider and weekday label, and the high/low labels. */
 function labelBoxes(graph: Graph, scale: ReturnType<typeof makeScale>): Rect[] {
 	const boxes: Rect[] = [];
@@ -562,9 +562,7 @@ const overlaps = (a: Rect, b: Rect) =>
 
 /**
  * Line at the current time, styled like the midnight divider and stopping
- * short of any icon in the same way. Its "Now" label sits to the right like
- * the weekday labels; if that would hit a weekday label, a high/low label or
- * the screen edge it goes left, then a row lower.
+ * short of any icon in the same way.
  */
 function drawNowLine(
 	ctx: SKRSContext2D,
@@ -578,23 +576,61 @@ function drawNowLine(
 	);
 	const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
 	// Same look as the midnight divider: dashed black line, black label
-	const top = GRAPH.shadeTop;
 	dashedLine(ctx, nx, GRAPH.nightTop, bottom);
+}
 
-	const avoid = labelBoxes(graph, scale);
-	drawLatticeLabel(ctx, "Now", COLORS.black, (bw, bh) => {
+/**
+ * The now line's label, the time of the render ("09:49"). It sits to the
+ * right like the weekday labels; if that would hit a weekday label, a
+ * high/low label, the now dot, a midnight divider or the screen edge it goes
+ * left, then a row lower, and so on; failing all that it sits over the line. Drawn after the lines so its box covers them, like the
+ * high/low labels.
+ */
+function drawNowLabel(
+	ctx: SKRSContext2D,
+	graph: Graph,
+	scale: ReturnType<typeof makeScale>,
+) {
+	const nx = Math.round(scale.x(graph.now));
+	if (nx < 0 || nx > SCREEN.width) return;
+	const curve = temperatureCurve(graph, scale);
+	const dotY = curve.reduce((best, p) =>
+		Math.abs(p[0] - nx) < Math.abs(best[0] - nx) ? p : best,
+	)[1];
+	const dotR = GRAPH.nowDotRadius + 3;
+	const avoid = [
+		...labelBoxes(graph, scale),
+		{ x: nx - dotR, y: dotY - dotR, w: dotR * 2, h: dotR * 2 },
+		// Never straddle a midnight divider
+		...graph.midnights.map(({ time }) => ({
+			x: scale.x(time) - 1,
+			y: GRAPH.shadeTop,
+			w: 2,
+			h: GRAPH.axisY,
+		})),
+	];
+	drawLatticeLabel(ctx, graph.nowLabel, COLORS.black, (bw, bh) => {
 		let leftX = lattice.edgeAtOrAfterX(nx - 2 - bw - GRAPH.dotSpacing);
 		while (leftX + bw > nx - 1 - GRAPH.dotSize) leftX -= GRAPH.dotSpacing;
 		const rightX = lattice.edgeRightOfLine(nx);
-		const y1 = lattice.edgeAtOrAfterY(top);
-		// A row lower, for when a weekday label is right beside the line
-		const y2 = lattice.edgeAtOrAfterY(y1 + bh + 2);
-		const candidates = [
-			{ x: rightX, y: y1 },
-			{ x: leftX, y: y1 },
-			{ x: rightX, y: y2 },
-			{ x: leftX, y: y2 },
-		].map((c) => ({ ...c, w: bw, h: bh }));
+		const centreX = lattice.edgeAtOrAfterX(
+			nx - bw / 2 - GRAPH.dotSpacing / 2,
+		);
+		const candidates: Rect[] = [];
+		const onLine: Rect[] = [];
+		// Row by row down from the top, stopping above the icons
+		for (
+			let y = lattice.edgeAtOrAfterY(GRAPH.shadeTop);
+			y + bh < GRAPH.iconY - 4;
+			y = lattice.edgeAtOrAfterY(y + bh + 2)
+		) {
+			candidates.push({ x: rightX, y, w: bw, h: bh });
+			candidates.push({ x: leftX, y, w: bw, h: bh });
+			onLine.push({ x: centreX, y, w: bw, h: bh });
+		}
+		// Last resort (no room either side, e.g. a weekday just right of
+		// the line near the screen edge): a tag sitting over the line
+		candidates.push(...onLine);
 		const fits = (r: Rect) =>
 			r.x >= 0 &&
 			r.x + r.w <= SCREEN.width &&
@@ -637,6 +673,7 @@ export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	drawHumidityLine(ctx, graph, scale);
 	drawTemperatureLine(ctx, graph, scale);
 	drawNowDot(ctx, graph, scale);
+	drawNowLabel(ctx, graph, scale);
 	drawPointLabels(ctx, graph, scale);
 	// Last, so no label box can cover it
 	drawRule(ctx, GRAPH.topRuleY);

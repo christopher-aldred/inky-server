@@ -144,6 +144,8 @@ test("buildScreenModel: 8 points every 3h from the current hour, edges, highligh
 	assert.equal(graph.before?.time, at("2026-11-23T15:00:00Z"));
 	assert.equal(graph.after?.time, at("2026-11-24T18:00:00Z"));
 	assert.equal(graph.now, at("2026-11-23T18:40:00Z"));
+	// The now marker is labelled with the London time of the render
+	assert.equal(graph.nowLabel, "18:40");
 	assert.equal(graph.points[graph.lowIndex].temp, -1);
 	assert.equal(graph.points[graph.highIndex].temp, 12);
 	assert.deepEqual(

@@ -72,6 +72,8 @@ export interface ScreenModel {
 		lowIndex: number;
 		/** The current time, for the "now" marker. */
 		now: number;
+		/** Local time of the render ("09:49"), the now marker's label. */
+		nowLabel: string;
 	};
 }
 
@@ -358,6 +360,7 @@ export function buildScreenModel(
 			highIndex: temps.indexOf(Math.max(...temps)),
 			lowIndex: temps.indexOf(Math.min(...temps)),
 			now,
+			nowLabel: formatLocalTime(now, timezone),
 		},
 	};
 }
