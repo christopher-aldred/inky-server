@@ -521,9 +521,8 @@ function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 			h: GRAPH.axisY,
 		});
 	}
-	// The now line and its label, whichever side that lands
+	// The now line
 	const nx = scale.x(graph.now);
-	avoid.push({ x: nx - 60, y: GRAPH.shadeTop, w: 120, h: 60 });
 	avoid.push({ x: nx - 2, y: GRAPH.shadeTop, w: 4, h: GRAPH.axisY });
 	const nights = graph.nights.map(
 		([a, b], i) =>
@@ -541,7 +540,7 @@ function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 	}));
 }
 
-/** Boxes that the now label and stars keep clear of: each midnight's
+/** Boxes that the stars keep clear of: each midnight's
  * divider and weekday label, and the high/low labels. */
 function labelBoxes(graph: Graph, scale: ReturnType<typeof makeScale>): Rect[] {
 	const boxes: Rect[] = [];
@@ -557,12 +556,9 @@ function labelBoxes(graph: Graph, scale: ReturnType<typeof makeScale>): Rect[] {
 	return boxes;
 }
 
-const overlaps = (a: Rect, b: Rect) =>
-	a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
-
 /**
  * Line at the current time, styled like the midnight divider and stopping
- * short of any icon in the same way.
+ * short of any icon in the same way. Unlabelled, with no dot.
  */
 function drawNowLine(
 	ctx: SKRSContext2D,
@@ -575,94 +571,11 @@ function drawNowLine(
 		(p) => Math.abs(scale.x(p.time) - nx) < GRAPH.smallIcon / 2 + 4,
 	);
 	const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
-	// Same look as the midnight divider: dashed black line, black label
+	// Same look as the midnight divider: dashed black line
 	dashedLine(ctx, nx, GRAPH.nightTop, bottom);
 }
 
-/**
- * The now line's label, the time of the render ("09:49"). It sits to the
- * right like the weekday labels; if that would hit a weekday label, a
- * high/low label, the now dot, a midnight divider or the screen edge it goes
- * left, then a row lower, and so on; failing all that it sits over the line. Drawn after the lines so its box covers them, like the
- * high/low labels.
- */
-function drawNowLabel(
-	ctx: SKRSContext2D,
-	graph: Graph,
-	scale: ReturnType<typeof makeScale>,
-) {
-	const nx = Math.round(scale.x(graph.now));
-	if (nx < 0 || nx > SCREEN.width) return;
-	const curve = temperatureCurve(graph, scale);
-	const dotY = curve.reduce((best, p) =>
-		Math.abs(p[0] - nx) < Math.abs(best[0] - nx) ? p : best,
-	)[1];
-	const dotR = GRAPH.nowDotRadius + 3;
-	const avoid = [
-		...labelBoxes(graph, scale),
-		{ x: nx - dotR, y: dotY - dotR, w: dotR * 2, h: dotR * 2 },
-		// Never straddle a midnight divider
-		...graph.midnights.map(({ time }) => ({
-			x: scale.x(time) - 1,
-			y: GRAPH.shadeTop,
-			w: 2,
-			h: GRAPH.axisY,
-		})),
-	];
-	drawLatticeLabel(ctx, graph.nowLabel, COLORS.black, (bw, bh) => {
-		let leftX = lattice.edgeAtOrAfterX(nx - 2 - bw - GRAPH.dotSpacing);
-		while (leftX + bw > nx - 1 - GRAPH.dotSize) leftX -= GRAPH.dotSpacing;
-		const rightX = lattice.edgeRightOfLine(nx);
-		const centreX = lattice.edgeAtOrAfterX(
-			nx - bw / 2 - GRAPH.dotSpacing / 2,
-		);
-		const candidates: Rect[] = [];
-		const onLine: Rect[] = [];
-		// Row by row down from the top, stopping above the icons
-		for (
-			let y = lattice.edgeAtOrAfterY(GRAPH.shadeTop);
-			y + bh < GRAPH.iconY - 4;
-			y = lattice.edgeAtOrAfterY(y + bh + 2)
-		) {
-			candidates.push({ x: rightX, y, w: bw, h: bh });
-			candidates.push({ x: leftX, y, w: bw, h: bh });
-			onLine.push({ x: centreX, y, w: bw, h: bh });
-		}
-		// Last resort (no room either side, e.g. a weekday just right of
-		// the line near the screen edge): a tag sitting over the line
-		candidates.push(...onLine);
-		const fits = (r: Rect) =>
-			r.x >= 0 &&
-			r.x + r.w <= SCREEN.width &&
-			!avoid.some((a) => overlaps(r, a));
-		return candidates.find(fits) ?? candidates[0];
-	});
-}
-
-/** Red dot on the temperature line at the current time. */
-function drawNowDot(
-	ctx: SKRSContext2D,
-	graph: Graph,
-	scale: ReturnType<typeof makeScale>,
-) {
-	const nx = scale.x(graph.now);
-	if (nx < 0 || nx > SCREEN.width) return;
-	const curve = temperatureCurve(graph, scale);
-	let best = curve[0];
-	for (const p of curve)
-		if (Math.abs(p[0] - nx) < Math.abs(best[0] - nx)) best = p;
-	const r = GRAPH.nowDotRadius;
-	ctx.beginPath();
-	ctx.arc(nx, best[1], r + 3, 0, Math.PI * 2);
-	ctx.fillStyle = COLORS.white;
-	ctx.fill();
-	ctx.beginPath();
-	ctx.arc(nx, best[1], r, 0, Math.PI * 2);
-	ctx.fillStyle = COLORS.red;
-	ctx.fill();
-}
-
-/** Bottom half: night shading, day divider, temperature line, icons, labels. */
+/** Bottom half: night shading, day divider, now line, temperature line, icons, labels. */
 export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	if (graph.points.length === 0) return;
 	const scale = makeScale(graph);
@@ -672,8 +585,6 @@ export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	drawRule(ctx, GRAPH.axisY);
 	drawHumidityLine(ctx, graph, scale);
 	drawTemperatureLine(ctx, graph, scale);
-	drawNowDot(ctx, graph, scale);
-	drawNowLabel(ctx, graph, scale);
 	drawPointLabels(ctx, graph, scale);
 	// Last, so no label box can cover it
 	drawRule(ctx, GRAPH.topRuleY);

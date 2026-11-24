@@ -91,8 +91,6 @@ export const GRAPH = {
 	labelRadius: 8,
 	/** White edge around drop/flake icons, in px. */
 	iconHalo: 3,
-	/** Red dot on the temperature line at the current time. */
-	nowDotRadius: 8,
 	/** Little white stars in the darkest part of each night. */
 	stars: {
 		/** Arm length from the centre, in px. */
