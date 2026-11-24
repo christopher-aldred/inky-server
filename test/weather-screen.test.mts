@@ -230,13 +230,12 @@ test("twilight is longer in summer than winter, like the UK's", () => {
 	const mar = twilightHours(at("2026-03-20"), 51.5);
 	const aug = twilightHours(at("2026-08-01"), 51.5);
 	const jun = twilightHours(at("2026-06-21"), 51.5);
-	// Astronomical twilight in London: ~2h in late November, under 2h at the
-	// equinox, nearly 3h in early August
-	assert.ok(Math.abs(nov - 2) < 0.1, `nov ${nov}`);
-	assert.ok(mar < nov && mar > 1.7, `mar ${mar}`);
-	assert.ok(Math.abs(aug - 2.85) < 0.15, `aug ${aug}`);
-	// Midsummer never gets properly dark: the fade outlasts half the night
-	assert.ok(jun > 3.7, `jun ${jun}`);
+	// Nautical twilight in London: ~1h20 in late November (dark by ~17:15),
+	// shortest at the equinox, ~1h35 in early August, ~2h at midsummer
+	assert.ok(Math.abs(nov - 1.35) < 0.1, `nov ${nov}`);
+	assert.ok(mar < nov && mar > 1.1, `mar ${mar}`);
+	assert.ok(Math.abs(aug - 1.6) < 0.1, `aug ${aug}`);
+	assert.ok(Math.abs(jun - 2.05) < 0.1, `jun ${jun}`);
 	// Further north, longer twilight
 	assert.ok(twilightHours(at("2026-11-23"), 57) > nov);
 });
@@ -247,7 +246,7 @@ test("the screen model carries one twilight length per night", () => {
 		now: londonWeather().current.time,
 	});
 	assert.equal(model.graph.twilightHours.length, model.graph.nights.length);
-	for (const h of model.graph.twilightHours) assert.ok(Math.abs(h - 2) < 0.1);
+	for (const h of model.graph.twilightHours) assert.ok(Math.abs(h - 1.35) < 0.1);
 });
 
 test("night dots fade in after sunset and out before sunrise", () => {
@@ -297,7 +296,7 @@ test("night stars stay in the dark middle, clear of the line and labels", () => 
 	// Same inputs, same stars (no flicker between refreshes)
 	assert.deepEqual(starPositions([[100, 700]], lineY, [label]), stars);
 	// A short night has no dark middle, so no stars
-	assert.deepEqual(starPositions([[100, 150]], lineY, []), []);
+	assert.deepEqual(starPositions([[100, 150, 100]], lineY, []), []);
 });
 
 test("stars are white gaps shaped like a four-point twinkle", () => {
