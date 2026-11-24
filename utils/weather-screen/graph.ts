@@ -521,9 +521,6 @@ function nightStars(graph: Graph, scale: ReturnType<typeof makeScale>) {
 			h: GRAPH.axisY,
 		});
 	}
-	// The now line
-	const nx = scale.x(graph.now);
-	avoid.push({ x: nx - 2, y: GRAPH.shadeTop, w: 4, h: GRAPH.axisY });
 	const nights = graph.nights.map(
 		([a, b], i) =>
 			[scale.x(a), scale.x(b), nightFadePx(graph, i)] as [
@@ -556,32 +553,12 @@ function labelBoxes(graph: Graph, scale: ReturnType<typeof makeScale>): Rect[] {
 	return boxes;
 }
 
-/**
- * Line at the current time, styled like the midnight divider and stopping
- * short of any icon in the same way. Unlabelled, with no dot.
- */
-function drawNowLine(
-	ctx: SKRSContext2D,
-	graph: Graph,
-	scale: ReturnType<typeof makeScale>,
-) {
-	const nx = Math.round(scale.x(graph.now));
-	if (nx < 0 || nx > SCREEN.width) return;
-	const hitsIcon = graph.points.some(
-		(p) => Math.abs(scale.x(p.time) - nx) < GRAPH.smallIcon / 2 + 4,
-	);
-	const bottom = hitsIcon ? GRAPH.iconY - 4 : GRAPH.axisY;
-	// Same look as the midnight divider: dashed black line
-	dashedLine(ctx, nx, GRAPH.nightTop, bottom);
-}
-
-/** Bottom half: night shading, day divider, now line, temperature line, icons, labels. */
+/** Bottom half: night shading, day divider, temperature line, icons, labels. */
 export function drawGraph(ctx: SKRSContext2D, graph: Graph) {
 	if (graph.points.length === 0) return;
 	const scale = makeScale(graph);
 	drawNightShading(ctx, graph, scale.x, nightStars(graph, scale));
 	drawMidnightDividers(ctx, graph, scale.x);
-	drawNowLine(ctx, graph, scale);
 	drawRule(ctx, GRAPH.axisY);
 	drawHumidityLine(ctx, graph, scale);
 	drawTemperatureLine(ctx, graph, scale);
